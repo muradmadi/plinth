@@ -1,3 +1,4 @@
 [tools]
 just = "1.59"
-rust = "1.99"
+# rustfmt and clippy are part of the gate; CI's minimal toolchain lacks them without this.
+rust = { version = "1.99", components = "rustfmt,clippy" }
