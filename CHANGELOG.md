@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/muradmadi/plinth/compare/v0.1.1...v0.2.0) (2026-10-23)
+
+
+### Features
+
+* create and configure the GitHub repo ([#9](https://github.com/muradmadi/plinth/issues/9)) ([92fbfdf](https://github.com/muradmadi/plinth/commit/92fbfdf9aaace48c040e5de9ed277059e26d2a4a))
+
+
+### Bug Fixes
+
+* keep release runs green and check release PRs once approved ([#8](https://github.com/muradmadi/plinth/issues/8)) ([19f7b51](https://github.com/muradmadi/plinth/commit/19f7b51858fcf517eb51029123aeca3e3d2e3e14))
+
 ## [0.1.1](https://github.com/muradmadi/plinth/compare/v0.1.0...v0.1.1) (2026-10-23)
 
 
