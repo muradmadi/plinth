@@ -1,0 +1,42 @@
+# Builds plinth for each platform and attaches the archives to the release, where
+# `mise use -g github:muradmadi/plinth` finds them. release.yml starts this on the tag
+# release-please just made; to redo a release by hand: gh workflow run publish.yml --ref v1.2.3
+name: publish
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  binaries:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      # Installs the rust and just versions pinned in mise.toml.
+      - uses: jdx/mise-action@v5
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - run: cargo build --release --locked --target "$TARGET"
+        env:
+          TARGET: ${{ matrix.target }}
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          if [[ "$GITHUB_REF_TYPE" != tag ]]; then
+            echo "::error::Run this on a release tag: gh workflow run publish.yml --ref v1.2.3"
+            exit 1
+          fi
+          tar -czf "plinth-$TARGET.tar.gz" -C "target/$TARGET/release" plinth
+          gh release upload "$GITHUB_REF_NAME" "plinth-$TARGET.tar.gz" --clobber

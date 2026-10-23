@@ -39,6 +39,14 @@ branch" when a PR should be re-tested against it first. Labels: `feature`, `bug`
 `docs`, `ci`, `dependencies`. Wait for Murad before merging. release-please's PRs need "Approve workflows
 to run" clicked once before their `check` runs (see `.github/workflows/release.yml`).
 
+## Releases
+
+release-please makes each release from the merged titles. `release.yml` then starts
+`publish.yml` on the new tag, which builds `x86_64-unknown-linux-gnu` and `aarch64-apple-darwin`
+and attaches `plinth-<target>.tar.gz`, the files `mise use -g github:muradmadi/plinth` installs.
+The `publish.yml` hook in `release.yml` is shared with every generated project; only plinth has a
+`publish.yml` so far.
+
 ## Toolchain
 
 Rust and just are pinned in `mise.toml`; run `mise install`, then `just setup` once. `just check` is
