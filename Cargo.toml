@@ -1,6 +1,6 @@
 [package]
 name = "plinth"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 description = "Scaffold a new project in one stack, with its GitHub repo set up the same way every time"
 license = "MIT"
