@@ -1,0 +1,9 @@
+{
+  "name": "plinth",
+  "description": "Scaffold a new project in one stack with the plinth CLI, and set up its GitHub repo",
+  "author": {
+    "name": "Murad Madi"
+  },
+  "homepage": "https://github.com/muradmadi/plinth",
+  "license": "MIT"
+}

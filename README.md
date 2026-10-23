@@ -12,6 +12,16 @@ mise use -g github:muradmadi/plinth
 
 Each release carries builds for Linux x86_64 and macOS on Apple silicon.
 
+### Claude Code
+
+```
+/plugin install plinth --marketplace muradmadi/plinth
+```
+
+The `plinth` skill turns "start a new Rust CLI called wordcount" into a `plinth new` call: it shows
+the `--dry-run` first and waits for a yes before creating the GitHub repo. It needs the CLI
+installed as above.
+
 ## Use
 
 ```sh
