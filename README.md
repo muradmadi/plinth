@@ -4,6 +4,14 @@ Scaffolds a new project in one stack, then creates and configures its GitHub rep
 every time: squash-only PRs behind a `main` ruleset, a Conventional Commit title check,
 release-please and monthly Dependabot. A Claude Code plugin in this repo drives the same CLI.
 
+## Install
+
+```sh
+mise use -g github:muradmadi/plinth
+```
+
+Each release carries builds for Linux x86_64 and macOS on Apple silicon.
+
 ## Use
 
 ```sh

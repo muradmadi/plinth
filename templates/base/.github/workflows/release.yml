@@ -5,6 +5,10 @@
 # It works with the job token (the repo lets Actions open PRs). GitHub holds the workflows on a PR
 # the job token opened until someone approves them, so on the release PR click "Approve workflows
 # to run" once; its `check` then runs and the ruleset lets it merge.
+#
+# A project that ships something with each release (binaries, an image, a deploy) does it in
+# .github/workflows/publish.yml, started below on the new tag. GitHub starts no workflow from a
+# release or tag the job token made, so publish.yml can't simply listen for them.
 name: release
 
 on:
@@ -19,12 +23,24 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  actions: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v5
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Start publish.yml on the new tag
+        if: steps.release.outputs.release_created
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          if gh workflow view publish.yml --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+          fi
