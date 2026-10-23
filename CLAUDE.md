@@ -28,7 +28,8 @@ src/step.rs        a command as data, so `--dry-run` prints exactly what a run w
 templates/base/    files every project gets; `.j2` files are rendered with minijinja
 templates/rust/    the Rust stack; a file here replaces a base file at the same path
 tests/new.rs       runs the binary, including the check that it reproduces this repo
-skills/plinth/     the Claude Code skill (planned)
+.claude-plugin/    marketplace.json: this repo is a Claude Code marketplace with one plugin
+plugin/            the plinth plugin: plugin.json and skills/plinth/SKILL.md, which drives the CLI
 ```
 
 ## Git and GitHub
