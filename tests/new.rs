@@ -38,6 +38,7 @@ fn new_without_setup(name: &str, dir: &Path, description: &str) -> Output {
         "--stack",
         "rust",
         "--no-setup",
+        "--no-github",
         "--dir",
         dir.to_str().unwrap(),
         "--description",
@@ -155,6 +156,8 @@ fn dry_run_lists_files_and_commands_but_writes_nothing() {
         "--stack",
         "rust",
         "--dry-run",
+        "--owner",
+        "someone",
         "--dir",
         root.to_str().unwrap(),
     ]);
@@ -162,7 +165,40 @@ fn dry_run_lists_files_and_commands_but_writes_nothing() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("  Cargo.toml"));
     assert!(stdout.contains("  mise exec -- cargo generate-lockfile"));
+    assert!(
+        stdout
+            .contains("  gh repo create someone/demo --private --source . --remote origin --push")
+    );
+    assert!(stdout.contains(
+        "  gh api --silent --method POST repos/someone/demo/rulesets --input - <<< (JSON)"
+    ));
     assert!(!root.exists());
+}
+
+#[test]
+fn github_needs_the_setup_that_makes_a_git_repo() {
+    let tmp = TempDir::new().unwrap();
+    let out = plinth(&[
+        "new",
+        "demo",
+        "--stack",
+        "rust",
+        "--no-setup",
+        "--dir",
+        tmp.path().join("demo").to_str().unwrap(),
+    ]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("--no-github"));
+}
+
+/// The ruleset plinth applies requires a status check named `check`, so CI must have that job.
+#[test]
+fn ci_has_the_job_the_ruleset_requires() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("demo");
+    assert!(new_without_setup("demo", &root, "").status.success());
+    let ci = fs::read_to_string(root.join(".github/workflows/ci.yml")).unwrap();
+    assert!(ci.contains("\njobs:\n  check:\n"));
 }
 
 /// The whole path: write, install the pinned tools, finish the stack's setup, then the new
@@ -178,6 +214,7 @@ fn a_new_rust_project_passes_its_own_gate() {
         "demo",
         "--stack",
         "rust",
+        "--no-github",
         "--dir",
         root.to_str().unwrap(),
     ]);

@@ -5,7 +5,8 @@
 ## Git and GitHub
 
 The global PR workflow applies. `main` is protected by a ruleset: changes reach it only through a
-squash-merged PR whose `check` passes and whose branch is up to date. Labels: `feature`, `bug`,
+squash-merged PR whose `check` passes. Branches needn't be up to date with `main`; use "Update
+branch" when a PR should be re-tested against it first. Labels: `feature`, `bug`,
 `docs`, `ci`, `dependencies`. Wait for Murad before merging. release-please's PRs need "Approve workflows
 to run" clicked once before their `check` runs (see `.github/workflows/release.yml`).
 

@@ -23,6 +23,8 @@ discussion settles TypeScript.
 src/main.rs        CLI: `new` and `stacks` (clap), name and directory checks
 src/scaffold.rs    renders the layers, writes the files, runs the setup commands
 src/stack.rs       the stacks and their setup commands
+src/github.rs      the first commit, `gh repo create`, repo settings, labels, the `main` ruleset
+src/step.rs        a command as data, so `--dry-run` prints exactly what a run would do
 templates/base/    files every project gets; `.j2` files are rendered with minijinja
 templates/rust/    the Rust stack; a file here replaces a base file at the same path
 tests/new.rs       runs the binary, including the check that it reproduces this repo
@@ -32,7 +34,8 @@ skills/plinth/     the Claude Code skill (planned)
 ## Git and GitHub
 
 The global PR workflow applies. `main` is protected by a ruleset: changes reach it only through a
-squash-merged PR whose `check` passes and whose branch is up to date. Labels: `feature`, `bug`,
+squash-merged PR whose `check` passes. Branches needn't be up to date with `main`; use "Update
+branch" when a PR should be re-tested against it first. Labels: `feature`, `bug`,
 `docs`, `ci`, `dependencies`. Wait for Murad before merging. release-please's PRs need "Approve workflows
 to run" clicked once before their `check` runs (see `.github/workflows/release.yml`).
 
