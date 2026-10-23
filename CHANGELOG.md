@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/muradmadi/plinth/compare/v0.1.0...v0.1.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* let the release run finish after publishing a release ([#6](https://github.com/muradmadi/plinth/issues/6)) ([aa3f33c](https://github.com/muradmadi/plinth/commit/aa3f33c12048e7d068679c789c7b9938abc42f53))
+
 ## 0.1.0 (2026-10-23)
 
 
