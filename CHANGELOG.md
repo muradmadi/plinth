@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/muradmadi/plinth/compare/v0.3.0...v0.4.0) (2026-10-23)
+
+
+### Features
+
+* start a project with plinth from Claude Code ([#14](https://github.com/muradmadi/plinth/issues/14)) ([6c3d449](https://github.com/muradmadi/plinth/commit/6c3d449bb996a3c3791600ad1acf3759abc1d5bf))
+
 ## [0.3.0](https://github.com/muradmadi/plinth/compare/v0.2.0...v0.3.0) (2026-10-23)
 
 
