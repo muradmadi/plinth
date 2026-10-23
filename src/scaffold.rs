@@ -2,14 +2,14 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use include_dir::{Dir, File, include_dir};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::{Environment, UndefinedBehavior, Value, context};
 
 use crate::stack::Stack;
+use crate::step::Step;
 
 /// Every template, compiled into the binary so a release needs nothing beside it.
 static TEMPLATES: Dir = include_dir!("$CARGO_MANIFEST_DIR/templates");
@@ -95,35 +95,19 @@ pub fn write(root: &Path, files: &BTreeMap<PathBuf, String>) -> Result<()> {
 }
 
 /// The commands that turn the written files into a working project, in the order they run.
-pub fn setup_commands(stack: Stack) -> Vec<Vec<&'static str>> {
-    let mut commands = vec![
-        vec!["git", "init", "--quiet", "--initial-branch=main"],
-        vec!["mise", "trust"],
-        vec!["mise", "install"],
+pub fn setup_steps(stack: Stack) -> Vec<Step> {
+    let mut steps = vec![
+        Step::new(["git", "init", "--quiet", "--initial-branch=main"]),
+        Step::new(["mise", "trust"]),
+        Step::new(["mise", "install"]),
     ];
     for command in stack.setup() {
-        let mut through_mise = vec!["mise", "exec", "--"];
-        through_mise.extend_from_slice(command);
-        commands.push(through_mise);
+        steps.push(Step::new(
+            ["mise", "exec", "--"].iter().chain(command.iter()).copied(),
+        ));
     }
-    commands.push(vec!["mise", "exec", "--", "just", "setup"]);
-    commands
-}
-
-/// Runs each command in `root`, stopping at the first that fails.
-pub fn run(root: &Path, commands: &[Vec<&str>]) -> Result<()> {
-    for command in commands {
-        let line = command.join(" ");
-        let status = Command::new(command[0])
-            .args(&command[1..])
-            .current_dir(root)
-            .status()
-            .with_context(|| format!("couldn't start `{line}`"))?;
-        if !status.success() {
-            bail!("`{line}` failed ({status})");
-        }
-    }
-    Ok(())
+    steps.push(Step::new(["mise", "exec", "--", "just", "setup"]));
+    steps
 }
 
 #[cfg(test)]

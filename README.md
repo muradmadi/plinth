@@ -8,11 +8,14 @@ release-please and monthly Dependabot. A Claude Code plugin in this repo drives 
 
 ```sh
 plinth stacks                                    # what `new` can build on
-plinth new demo --stack rust --description "…"   # writes ./demo, then git init, mise install, setup
+plinth new demo --stack rust --description "…"   # writes ./demo, sets it up, creates muradmadi/demo
 plinth new demo --stack rust --dry-run           # lists the files and commands, touches nothing
 ```
 
-`--no-setup` writes the files only. The GitHub repo step isn't built yet.
+The repo is private unless `--public` is given, and goes under the account gh is logged in as unless
+`--owner` names another. It gets squash-only merges, the label set, and a `main` ruleset that
+requires a PR with a passing `check`. `--no-github` stops before GitHub; `--no-setup --no-github`
+writes the files only.
 
 ## Development
 
