@@ -1,5 +1,4 @@
 # Every PR and every push to main runs the gate.
-# release.yml starts it by hand on release-please's branch, whose pushes start no workflows.
 name: ci
 
 on:

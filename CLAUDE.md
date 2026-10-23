@@ -33,7 +33,8 @@ skills/plinth/     the Claude Code skill (planned)
 
 The global PR workflow applies. `main` is protected by a ruleset: changes reach it only through a
 squash-merged PR whose `check` passes and whose branch is up to date. Labels: `feature`, `bug`,
-`docs`, `ci`, `dependencies`. Wait for Murad before merging.
+`docs`, `ci`, `dependencies`. Wait for Murad before merging. release-please's PRs need "Approve workflows
+to run" clicked once before their `check` runs (see `.github/workflows/release.yml`).
 
 ## Toolchain
 

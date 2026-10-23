@@ -2,9 +2,9 @@
 # and adds the feat and fix titles since the last release to CHANGELOG.md. Merging it tags the
 # commit and publishes a GitHub Release.
 #
-# It works with the job token (the repo lets Actions open PRs). GitHub starts no workflows for what
-# the job token pushes, so after release-please opens or updates its PR, this starts ci on the
-# release branch. Its `check` lands on the PR's head commit, which the ruleset requires.
+# It works with the job token (the repo lets Actions open PRs). GitHub holds the workflows on a PR
+# the job token opened until someone approves them, so on the release PR click "Approve workflows
+# to run" once; its `check` then runs and the ruleset lets it merge.
 name: release
 
 on:
@@ -19,23 +19,12 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
-  actions: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v5
-        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-
-      - name: Run ci on the release PR
-        # Set only when release-please opened or updated its PR; empty on the run that releases.
-        if: steps.release.outputs.pr != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          # The branch name depends on the release type, so take it from the PR release-please made.
-          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
-        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
