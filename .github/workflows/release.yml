@@ -1,4 +1,4 @@
-# After each merge to main, release-please keeps one PR open that bumps the version in Cargo.toml
+# After each merge to main, release-please keeps one PR open that bumps the project's version
 # and adds the feat and fix titles since the last release to CHANGELOG.md. Merging it tags the
 # commit and publishes a GitHub Release.
 #

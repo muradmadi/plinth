@@ -1,0 +1,8 @@
+[package]
+name = "{{ name }}"
+version = "0.0.0"
+edition = "2024"
+{% if description %}description = {{ description|toml_string }}
+{% endif %}publish = false
+
+[dependencies]

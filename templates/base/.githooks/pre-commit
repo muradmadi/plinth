@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Refuses commits that would carry secrets or data. .gitignore already excludes them, but
+# `git add -f` or a bad ignore rule gets past it; this does not.
+# Installed by `just setup` (core.hooksPath).
+set -euo pipefail
+
+blocked=$(git diff --cached --name-only --diff-filter=ACMR | grep -E \
+  '\.(db|db-wal|db-shm|sqlite)$|(^|/)\.env(\.[^/]*)?$|(^|/)backups?/' \
+  | grep -vE '(^|/)\.env\.example$' || true)
+
+if [[ -n "$blocked" ]]; then
+  echo "pre-commit: refusing to commit secrets or data files:" >&2
+  while IFS= read -r path; do echo "  $path"; done <<< "$blocked" >&2
+  exit 1
+fi

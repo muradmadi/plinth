@@ -1,0 +1,27 @@
+name: Feature
+description: Something new {{ name }} could do
+labels: [feature]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What someone using {{ name }} can do
+      description: The change as a person using {{ name }} would notice it, in a sentence or two.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What happens today without it.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: How it might work
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: What this deliberately leaves for later.

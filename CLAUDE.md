@@ -12,16 +12,20 @@ discussion settles TypeScript.
 
 - **Never prompts.** Every choice is a flag, so Claude or any other harness can drive it.
 - **Practise what it preaches.** The shared files plinth generates match this repo's own copies; a
-  test enforces it. Change one, change both.
+  test enforces it. Change one, change both. A Dependabot PR that bumps an action in `.github/` fails
+  that test until the same bump is made under `templates/`; push it onto Dependabot's branch.
 - **Asks before touching GitHub.** `--dry-run` shows the `gh` calls; new repos are private unless
   `--public` is given.
 
 ## Layout
 
 ```
-src/main.rs        CLI entry (clap)
-templates/base/    files every project gets (planned)
-templates/rust/    the Rust stack layer (planned)
+src/main.rs        CLI: `new` and `stacks` (clap), name and directory checks
+src/scaffold.rs    renders the layers, writes the files, runs the setup commands
+src/stack.rs       the stacks and their setup commands
+templates/base/    files every project gets; `.j2` files are rendered with minijinja
+templates/rust/    the Rust stack; a file here replaces a base file at the same path
+tests/new.rs       runs the binary, including the check that it reproduces this repo
 skills/plinth/     the Claude Code skill (planned)
 ```
 
