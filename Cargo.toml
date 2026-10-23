@@ -1,0 +1,11 @@
+[package]
+name = "plinth"
+version = "0.0.0"
+edition = "2024"
+description = "Scaffold a new project in one stack, with its GitHub repo set up the same way every time"
+license = "MIT"
+repository = "https://github.com/muradmadi/plinth"
+# Released as binaries on GitHub, not to crates.io, where the name is taken.
+publish = false
+
+[dependencies]
