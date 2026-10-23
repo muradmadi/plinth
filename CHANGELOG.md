@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/muradmadi/plinth/compare/v0.2.0...v0.3.0) (2026-10-23)
+
+
+### Features
+
+* install plinth with mise from its GitHub releases ([#12](https://github.com/muradmadi/plinth/issues/12)) ([1042016](https://github.com/muradmadi/plinth/commit/10420168de9d6a63e0d681d0687276db31b6a5e6))
+
 ## [0.2.0](https://github.com/muradmadi/plinth/compare/v0.1.1...v0.2.0) (2026-10-23)
 
 
