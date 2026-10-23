@@ -1,0 +1,14 @@
+# {{ name }}
+
+{% if description %}{{ description }}{% else %}TODO: what {{ name }} is and who it is for.{% endif %}
+
+## Git and GitHub
+
+The global PR workflow applies. `main` is protected by a ruleset: changes reach it only through a
+squash-merged PR whose `check` passes and whose branch is up to date. Labels: `feature`, `bug`,
+`docs`, `ci`, `dependencies`. Wait for Murad before merging.
+
+## Toolchain
+
+The tools are pinned in `mise.toml`; run `mise install`, then `just setup` once. `just check` is the
+gate and `just ci` is what CI runs.

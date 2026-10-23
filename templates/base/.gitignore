@@ -1,0 +1,5 @@
+# Secrets and data never go in git; .githooks/pre-commit refuses them too.
+.env
+.env.*
+!.env.example
+*.db

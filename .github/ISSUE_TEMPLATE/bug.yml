@@ -19,7 +19,7 @@ body:
     attributes:
       label: Steps to see it
       placeholder: |
-        1. plinth new demo --stack rust --no-github
+        1. ...
         2. ...
     validations:
       required: true
@@ -27,4 +27,4 @@ body:
     id: version
     attributes:
       label: Version
-      description: The output of `plinth --version`.
+      description: The release or commit you saw it on.

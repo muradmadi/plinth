@@ -1,0 +1,13 @@
+# {{ name }}
+{% if description %}
+{{ description }}
+{% endif %}
+## Development
+
+Requires [mise](https://mise.jdx.dev).
+
+```sh
+mise install    # the tools pinned in mise.toml
+just setup      # commit guard
+just check      # the gate CI runs
+```

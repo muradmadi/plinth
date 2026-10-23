@@ -29,6 +29,6 @@ format:
 lint:
     cargo clippy --locked --all-targets -- -D warnings
 
-# Run the test suite
+# Run the test suite, including the slow tests `cargo test` skips
 test:
-    cargo test --locked
+    cargo test --locked -- --include-ignored

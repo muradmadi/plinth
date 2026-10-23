@@ -21,6 +21,6 @@ jobs:
           if [[ "$TITLE" =~ $pattern ]]; then
             echo "$TITLE"
           else
-            echo "::error::\"$TITLE\" isn't a Conventional Commit. Use type: description, such as \"feat: list the available stacks\". CLAUDE.md lists the types."
+            echo "::error::\"$TITLE\" isn't a Conventional Commit. Use type: description, such as \"feat: add a dark mode\". CLAUDE.md lists the types."
             exit 1
           fi
