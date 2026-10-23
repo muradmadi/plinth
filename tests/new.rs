@@ -88,7 +88,7 @@ fn writes_the_base_and_rust_layers() {
 
 /// plinth's own repo is a Rust project set up the way plinth sets one up. Generating "plinth"
 /// must reproduce this repo's files byte for byte, apart from the ones that describe plinth
-/// itself, so the templates can't drift from what the repo actually runs.
+/// itself or record its releases, so the templates can't drift from what the repo actually runs.
 #[test]
 fn generating_plinth_reproduces_this_repo() {
     let tmp = TempDir::new().unwrap();
@@ -100,10 +100,17 @@ fn generating_plinth_reproduces_this_repo() {
         String::from_utf8_lossy(&out.stderr)
     );
 
-    let own_content = ["Cargo.toml", "CLAUDE.md", "README.md", "src/main.rs"];
+    let not_compared = [
+        "Cargo.toml",
+        "CLAUDE.md",
+        "README.md",
+        "src/main.rs",
+        // release-please moves it on with every release.
+        ".release-please-manifest.json",
+    ];
     let repo = Path::new(env!("CARGO_MANIFEST_DIR"));
     for path in tree(&root) {
-        if own_content.iter().any(|own| path == Path::new(own)) {
+        if not_compared.iter().any(|own| path == Path::new(own)) {
             continue;
         }
         let generated = fs::read_to_string(root.join(&path)).unwrap();
