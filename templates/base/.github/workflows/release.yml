@@ -32,7 +32,8 @@ jobs:
           manifest-file: .release-please-manifest.json
 
       - name: Run ci on the release PR
-        if: steps.release.outputs.prs_created == 'true'
+        # Set only when release-please opened or updated its PR; empty on the run that releases.
+        if: steps.release.outputs.pr != ''
         env:
           GH_TOKEN: ${{ github.token }}
           # The branch name depends on the release type, so take it from the PR release-please made.
