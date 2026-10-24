@@ -1,0 +1,6 @@
+// The project's oxlint config. The gate's rules are in plinth.oxlintrc.json, which `plinth init`
+// rewrites; the project's own go in "rules" here, and win.
+{
+  "extends": ["./plinth.oxlintrc.json"],
+  "rules": {}
+}

@@ -650,26 +650,31 @@ fn a_new_hono_server_with_bun_passes_its_own_ci() {
     );
 }
 
-/// `bun init` asks for TypeScript 7, which the gate can't run on yet: plinth refuses and says what
-/// to change, and after that change the project passes.
+/// `bun init` asks for TypeScript 7, so the gate lints with type-aware oxlint, which catches what
+/// typescript-eslint's strict rules would.
 #[test]
 #[ignore]
-fn a_new_bun_package_passes_its_own_ci_once_it_asks_for_typescript_6() {
+fn a_new_bun_package_on_typescript_7_passes_its_own_ci() {
     let tmp = TempDir::new().unwrap();
-    let root = tmp.path().join("site");
+    let root = tmp.path().join("core");
     fs::create_dir(&root).unwrap();
     assert_ok_verbose(&with_tools("typescript-bun", &root, &["bun", "init", "-y"]));
     let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
-    assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("Change it to \"~6.0\""));
-
-    let manifest = fs::read_to_string(root.join("package.json")).unwrap();
-    let manifest = manifest.replace("\"typescript\": \"^7\"", "\"typescript\": \"~6.0\"");
-    fs::write(root.join("package.json"), manifest).unwrap();
-    assert_ok_verbose(&with_tools("typescript-bun", &root, &["bun", "install"]));
-    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
     assert_ok_verbose(&out);
+    assert!(root.join("plinth.oxlintrc.json").exists());
+    assert!(!root.join("eslint.config.mjs").exists());
     assert_ok_verbose(&just(&root, "ci"));
+
+    let index = root.join("index.ts");
+    let code = fs::read_to_string(&index).unwrap();
+    fs::write(
+        &index,
+        format!("{code}export const count = JSON.parse(\"{{}}\").count;\n"),
+    )
+    .unwrap();
+    let lint = just(&root, "lint");
+    assert!(!lint.status.success());
+    assert!(String::from_utf8_lossy(&lint.stdout).contains("no-unsafe-member-access"));
 }
 
 /// A monorepo made the way its packages' own tools make them, with no root: plinth assembles the
@@ -734,7 +739,7 @@ fn a_new_bun_monorepo_passes_its_own_ci() {
                 "--skip-houston",
                 "--yes",
             ],
-            // `bun init` asks for TypeScript 7, which plinth refuses; this is the change it asks for.
+            // `bun init` asks for TypeScript 7, and `astro check` needs 6, so the owner picks 6.
             &[
                 "sh",
                 "-c",
@@ -818,18 +823,67 @@ fn a_new_pnpm_monorepo_passes_its_own_ci() {
                 "--pm",
                 "pnpm",
             ],
-            // create-hono's Node template asks for TypeScript 7; this is the change plinth asks for.
+            // create-hono's Node template asks for TypeScript 7 and create-vite for 6; a workspace
+            // runs one, so the owner moves the app to 7.
             &[
                 "sed",
                 "-i",
-                r#"s/"typescript": "^7[^"]*"/"typescript": "~6.0"/"#,
-                "apps/api/package.json",
+                r#"s/"typescript": "~6[^"]*"/"typescript": "^7.0.2"/"#,
+                "apps/web/package.json",
             ],
         ],
         // create-hono's Node starter isn't Prettier-formatted, and plinth leaves code alone.
         &["format"],
     );
     assert!(root.join("pnpm-workspace.yaml").exists());
+    assert!(root.join("plinth.oxlintrc.json").exists());
+    fs::remove_dir_all(root.parent().unwrap()).unwrap();
+}
+
+/// The TypeScript 7 gate across a bun workspace: oxlint's React rules on the app's files only.
+#[test]
+#[ignore]
+fn a_new_typescript_7_monorepo_passes_its_own_ci() {
+    let root = a_new_monorepo_passes_its_own_ci(
+        "typescript-bun",
+        &[
+            &[
+                "bun",
+                "create",
+                "vite@latest",
+                "apps/web",
+                "--template",
+                "react-ts",
+                "--no-interactive",
+            ],
+            // create-vite asks for TypeScript 6; the owner moves the app to 7, as `bun init` asks.
+            &[
+                "sed",
+                "-i",
+                r#"s/"typescript": "~6[^"]*"/"typescript": "^7.0.2"/"#,
+                "apps/web/package.json",
+            ],
+            &[
+                "bun",
+                "create",
+                "hono@latest",
+                "apps/api",
+                "--template",
+                "bun",
+                "--install",
+                "--pm",
+                "bun",
+            ],
+            &[
+                "sh",
+                "-c",
+                "mkdir -p packages/core && cd packages/core && bun init -y >/dev/null",
+            ],
+        ],
+        &[],
+    );
+    let rc = fs::read_to_string(root.join("plinth.oxlintrc.json")).unwrap();
+    assert!(rc.contains("\"apps/web/src/main.tsx\""));
     fs::remove_dir_all(root.parent().unwrap()).unwrap();
 }
 
