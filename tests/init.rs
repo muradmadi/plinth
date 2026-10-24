@@ -270,7 +270,9 @@ fn installs_the_astro_gate_with_the_projects_package_manager() {
             " typescript@~6.0 prettier-plugin-astro eslint-plugin-astro @astrojs/check\n"
         )
     );
-    assert!(stdout.contains("  mise exec -- pnpm exec prettier --write eslint.config.mjs\n"));
+    assert!(stdout.contains(
+        "  mise exec -- pnpm exec prettier --write eslint.config.mjs .prettierrc.json\n"
+    ));
 }
 
 #[test]
@@ -665,4 +667,166 @@ fn a_new_bun_package_passes_its_own_ci_once_it_asks_for_typescript_6() {
     let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
     assert_ok_verbose(&out);
     assert_ok_verbose(&just(&root, "ci"));
+}
+
+/// A monorepo made the way its packages' own tools make them, with no root: plinth assembles the
+/// root, installs once there, and the whole workspace passes one gate.
+/// Makes a monorepo's packages with `commands`, sets it up, runs each of `recipes` once as its owner
+/// would, then `just ci`.
+fn a_new_monorepo_passes_its_own_ci(
+    layer: &str,
+    commands: &[&[&str]],
+    recipes: &[&str],
+) -> PathBuf {
+    let tmp = TempDir::new().unwrap().keep();
+    let root = tmp.join("shop");
+    fs::create_dir(&root).unwrap();
+    for command in commands {
+        assert_ok_verbose(&with_tools(layer, &root, command));
+    }
+    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    assert_ok_verbose(&out);
+    for recipe in recipes {
+        assert_ok_verbose(&just(&root, recipe));
+    }
+    assert_ok_verbose(&just(&root, "ci"));
+    root
+}
+
+#[test]
+#[ignore]
+fn a_new_bun_monorepo_passes_its_own_ci() {
+    let root = a_new_monorepo_passes_its_own_ci(
+        "typescript-bun",
+        &[
+            &[
+                "bun",
+                "create",
+                "vite@latest",
+                "apps/web",
+                "--template",
+                "react-ts",
+                "--no-interactive",
+            ],
+            &[
+                "bun",
+                "create",
+                "hono@latest",
+                "apps/api",
+                "--template",
+                "bun",
+                "--install",
+                "--pm",
+                "bun",
+            ],
+            &[
+                "bun",
+                "create",
+                "astro@latest",
+                "apps/site",
+                "--template",
+                "minimal",
+                "--no-install",
+                "--no-git",
+                "--skip-houston",
+                "--yes",
+            ],
+            // `bun init` asks for TypeScript 7, which plinth refuses; this is the change it asks for.
+            &[
+                "sh",
+                "-c",
+                "mkdir -p packages/core && cd packages/core && bun init -y >/dev/null && \
+                sed -i 's/\"typescript\": \"^7\"/\"typescript\": \"~6.0\"/' package.json",
+            ],
+        ],
+        &[],
+    );
+    let manifest = fs::read_to_string(root.join("package.json")).unwrap();
+    assert!(manifest.contains("\"apps/*\""), "{manifest}");
+    assert!(!root.join("apps/api/bun.lock").exists());
+    assert!(root.join("bun.lock").exists());
+    let justfile = fs::read_to_string(root.join("justfile")).unwrap();
+    assert!(justfile.contains("cd apps/site && bun x --no-install astro check"));
+    assert!(justfile.contains("tsc -b apps/web"));
+    assert!(justfile.contains("tsc --noEmit --skipLibCheck -p packages/core"));
+    fs::remove_dir_all(root.parent().unwrap()).unwrap();
+}
+
+#[test]
+#[ignore]
+fn a_new_pnpm_monorepo_passes_its_own_ci() {
+    let root = a_new_monorepo_passes_its_own_ci(
+        "typescript-pnpm",
+        &[
+            &[
+                "pnpm",
+                "create",
+                "vite@latest",
+                "apps/web",
+                "--template",
+                "react-ts",
+                "--no-interactive",
+            ],
+            &[
+                "pnpm",
+                "create",
+                "hono@latest",
+                "apps/api",
+                "--template",
+                "nodejs",
+                "--install",
+                "--pm",
+                "pnpm",
+            ],
+            // create-hono's Node template asks for TypeScript 7; this is the change plinth asks for.
+            &[
+                "sed",
+                "-i",
+                r#"s/"typescript": "^7[^"]*"/"typescript": "~6.0"/"#,
+                "apps/api/package.json",
+            ],
+        ],
+        // create-hono's Node starter isn't Prettier-formatted, and plinth leaves code alone.
+        &["format"],
+    );
+    assert!(root.join("pnpm-workspace.yaml").exists());
+    fs::remove_dir_all(root.parent().unwrap()).unwrap();
+}
+
+#[test]
+#[ignore]
+fn a_new_npm_monorepo_passes_its_own_ci() {
+    let root = a_new_monorepo_passes_its_own_ci(
+        "typescript",
+        &[
+            &[
+                "npm",
+                "create",
+                "vite@latest",
+                "apps/web",
+                "--",
+                "--template",
+                "react-ts",
+                "--no-interactive",
+            ],
+            &["npm", "install", "--prefix", "apps/web"],
+            &[
+                "npm",
+                "create",
+                "astro@latest",
+                "apps/site",
+                "--",
+                "--template",
+                "minimal",
+                "--install",
+                "--no-git",
+                "--skip-houston",
+                "--yes",
+            ],
+        ],
+        &[],
+    );
+    let justfile = fs::read_to_string(root.join("justfile")).unwrap();
+    assert!(justfile.contains("cd apps/site && npx --no -- astro build"));
+    fs::remove_dir_all(root.parent().unwrap()).unwrap();
 }

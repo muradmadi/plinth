@@ -10,8 +10,8 @@ language from its manifest. This repo is set up exactly the way plinth sets up o
 plinth sets up Rust projects and TypeScript ones (with npm, pnpm or bun) so far. A TypeScript
 package is one of a few kinds, read from its dependencies: an Astro site, a React app built with
 Vite, a Hono server, or a plain package. Each kind adds its own checks, lint rules and build to one
-TypeScript gate. Anything else is refused with a message saying so. Workspaces of several packages
-are next, then Python (uv).
+TypeScript gate. A workspace of several packages gets one gate at its root that covers each
+package by its kind. Anything else is refused with a message saying so. Python (uv) is next.
 
 ## Principles
 
@@ -20,11 +20,16 @@ are next, then Python (uv).
 - **Never touches the project's code.** plinth adds files the project lacks, appends missing lines
   to `.gitignore` and `.gitattributes` and its house rules to an AGENTS.md of the project's own,
   and leaves every other existing file as it is. A JavaScript project's gate tools go in as dev
-  dependencies through its own package manager. No framework or source templates.
+  dependencies through its own package manager. No framework or source templates. The one
+  exception is a monorepo whose packages were made by their own tools and have no root yet: plinth
+  assembles the root, which means writing the root `package.json` (or `pnpm-workspace.yaml`), giving
+  a nameless package a `name`, moving a package's pnpm settings to the root, and removing the
+  packages' own lockfiles and `node_modules` for one install at the root. The dry run lists each.
 - **Practise what it preaches.** The shared files plinth generates match this repo's own copies; a
   test enforces it. Change one, change both. The TypeScript layers, which this repo can't run, are
   held to the same bar by end-to-end tests: each kind's own creator (create-astro with each package
-  manager, create-vite, create-hono, `bun init`), plinth, then the project's own `just ci`. Renovate
+  manager, create-vite, create-hono, `bun init`, and monorepos of them with each package manager),
+  plinth, then the project's own `just ci`. Renovate
   scans `templates/` too, so its PRs bump an action or a mise tool in both copies at once.
 - **Asks before touching GitHub.** `--dry-run` shows the `gh` calls; new repos are private unless
   `--public` is given.
@@ -34,6 +39,7 @@ are next, then Python (uv).
 ```
 src/main.rs        CLI: `init` (clap), name checks, the dry-run report
 src/lang.rs        works out the language, package manager and kind of package; the setup commands
+src/workspace.rs   finds a monorepo's packages from its globs, or assembles a root for them
 src/scaffold.rs    renders the layers, sorts them into add / append / leave alone, writes them
 src/github.rs      the first commit, `gh repo create`, repo settings, labels, the `main` ruleset
 src/step.rs        a command as data, so `--dry-run` prints exactly what a run would do

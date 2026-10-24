@@ -9,7 +9,7 @@ use include_dir::{Dir, File, include_dir};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::{Environment, UndefinedBehavior, context};
 
-use crate::lang::{Kind, Lang, Member, Pm, Project};
+use crate::lang::{Assembly, Kind, Lang, Member, Pm, Project};
 use crate::step::Step;
 
 /// Every template, compiled into the binary so a release needs nothing beside it.
@@ -53,13 +53,15 @@ pub fn render(lang: Lang, vars: &Vars) -> Result<BTreeMap<PathBuf, String>> {
         members => vars.members.iter().map(|m| context! {
             path => m.path.as_str(),
             prefix => m.prefix(),
+            // A framework's own CLI runs from its package, where every package manager links it.
+            cd => if m.path == "." { String::new() } else { format!("cd {} && ", m.path) },
             kind => m.kind.name(),
             tsconfig => m.tsconfig.name(),
         }).collect::<Vec<_>>(),
         any_astro => has(vars, Kind::Astro),
         any_web => has(vars, Kind::Web),
         any_build => has(vars, Kind::Astro) || has(vars, Kind::Web),
-        indent => if root_kind(vars) == Some(Kind::Astro) { "tab" } else { "space" },
+        tab_globs => tab_globs(vars),
         prettierrc => prettierrc(vars),
     };
 
@@ -105,33 +107,63 @@ fn has(vars: &Vars, kind: Kind) -> bool {
     vars.members.iter().any(|m| m.kind == kind)
 }
 
-fn root_kind(vars: &Vars) -> Option<Kind> {
-    vars.members.iter().find(|m| m.path == ".").map(|m| m.kind)
-}
-
 /// The Prettier config, in the style the project's own tool wrote its files in, so its untouched
 /// code passes: create-vite and create-hono leave out semicolons, and they and create-astro use
 /// single quotes. A package plinth can't place, such as one from `bun init`, gets Prettier's
 /// defaults.
 fn prettierrc(vars: &Vars) -> String {
     let mut entries = Vec::new();
+    let mut overrides = Vec::new();
     if has(vars, Kind::Astro) {
-        entries.push(r#""plugins": ["prettier-plugin-astro"]"#);
+        entries.push(r#""plugins": ["prettier-plugin-astro"]"#.to_owned());
     }
-    let root = root_kind(vars);
-    if matches!(root, Some(Kind::Web | Kind::Api)) {
-        entries.push(r#""semi": false"#);
+    for member in &vars.members {
+        let style = style(member.kind);
+        if style.is_empty() {
+            continue;
+        }
+        if member.path == "." {
+            entries.extend(style.iter().map(|s| s.to_string()));
+            // renovate.json5 keeps JSON's double quotes, like Renovate's own examples.
+            overrides.push(r#"{ "files": "*.json5", "options": { "singleQuote": false } }"#.into());
+        } else {
+            // A monorepo's root keeps Prettier's defaults; each package keeps its tool's style.
+            overrides.push(format!(
+                r#"{{ "files": "{}**", "options": {{ {} }} }}"#,
+                member.prefix(),
+                style.join(", ")
+            ));
+        }
     }
-    if matches!(root, Some(Kind::Astro | Kind::Web | Kind::Api)) {
-        entries.push(r#""singleQuote": true"#);
-        // renovate.json5 keeps JSON's double quotes, like Renovate's own examples.
-        entries
-            .push(r#""overrides": [{ "files": "*.json5", "options": { "singleQuote": false } }]"#);
+    if !overrides.is_empty() {
+        entries.push(format!(r#""overrides": [{}]"#, overrides.join(", ")));
     }
     if entries.is_empty() {
         return "{}".into();
     }
     format!("{{\n  {}\n}}", entries.join(",\n  "))
+}
+
+/// The Prettier options that match how a kind of package's tool writes its files.
+fn style(kind: Kind) -> &'static [&'static str] {
+    match kind {
+        Kind::Astro => &[r#""singleQuote": true"#],
+        Kind::Web | Kind::Api => &[r#""semi": false"#, r#""singleQuote": true"#],
+        Kind::Lib => &[],
+    }
+}
+
+/// The paths indented with tabs, as create-astro indents: everything for an Astro site, an Astro
+/// package's directory in a monorepo.
+fn tab_globs(vars: &Vars) -> Vec<String> {
+    vars.members
+        .iter()
+        .filter(|m| m.kind == Kind::Astro)
+        .map(|m| match m.path.as_str() {
+            "." => "*".to_owned(),
+            _ => format!("{}**", m.prefix()),
+        })
+        .collect()
 }
 
 fn files_in(dir: &'static Dir<'static>, out: &mut Vec<&'static File<'static>>) {
@@ -142,7 +174,7 @@ fn files_in(dir: &'static Dir<'static>, out: &mut Vec<&'static File<'static>>) {
 }
 
 /// What plinth does with each rendered file, given what the project already has. It never
-/// overwrites a file.
+/// overwrites a file; only making a monorepo's root edits or removes anything.
 #[derive(Debug, Default)]
 pub struct Plan {
     /// Files the project doesn't have yet.
@@ -152,10 +184,33 @@ pub struct Plan {
     pub append: BTreeMap<PathBuf, String>,
     /// Files the project already has in its own form, left as they are.
     pub keep: Vec<PathBuf>,
+    /// Package manifests given the name a workspace needs, with their new text.
+    pub edit: BTreeMap<PathBuf, String>,
+    /// Package lockfiles and node_modules that a workspace's one install replaces.
+    pub remove: Vec<PathBuf>,
+}
+
+impl Plan {
+    /// Adds what assembling a monorepo's root takes.
+    pub fn assemble(&mut self, assembly: &Assembly) {
+        self.add.extend(assembly.create.iter().cloned());
+        self.edit.extend(assembly.rename.iter().cloned());
+        self.remove.extend(assembly.remove.iter().cloned());
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.add.is_empty()
+            && self.append.is_empty()
+            && self.edit.is_empty()
+            && self.remove.is_empty()
+    }
 }
 
 /// A TypeScript project's ESLint config, which plinth formats once the project's Prettier is in.
 const ESLINT_CONFIG: &str = "eslint.config.mjs";
+
+/// The configs plinth renders as plain text and the project's Prettier then formats.
+const FORMATTED: [&str; 2] = [ESLINT_CONFIG, ".prettierrc.json"];
 
 /// Files of one rule per line, which plinth adds its missing lines to instead of leaving alone.
 const APPENDED: [&str; 2] = [".gitignore", ".gitattributes"];
@@ -304,6 +359,19 @@ pub fn write(root: &Path, plan: &Plan) -> Result<()> {
             .and_then(|mut f| f.write_all(text.as_bytes()))
             .with_context(|| format!("couldn't append to {}", dest.display()))?;
     }
+    for (path, text) in &plan.edit {
+        let dest = root.join(path);
+        fs::write(&dest, text).with_context(|| format!("couldn't write {}", dest.display()))?;
+    }
+    for path in &plan.remove {
+        let dest = root.join(path);
+        let removed = if dest.is_dir() {
+            fs::remove_dir_all(&dest)
+        } else {
+            fs::remove_file(&dest)
+        };
+        removed.with_context(|| format!("couldn't remove {}", dest.display()))?;
+    }
     Ok(())
 }
 
@@ -322,7 +390,7 @@ pub fn setup_steps(root: &Path, project: &Project, plan: &Plan) -> Vec<Step> {
     }
     steps.push(Step::new(["mise", "trust"]));
     steps.push(Step::new(["mise", "install"]));
-    for command in project.setup(root) {
+    for command in project.setup(root, |file| plan.add.contains_key(Path::new(file))) {
         steps.push(Step::new(
             ["mise", "exec", "--"]
                 .map(String::from)
@@ -330,17 +398,19 @@ pub fn setup_steps(root: &Path, project: &Project, plan: &Plan) -> Vec<Step> {
                 .chain(command),
         ));
     }
-    // plinth writes its ESLint config in Prettier's default style; the project's own Prettier
-    // config then puts it in the project's style, so `just format-check` passes on it.
-    if let Some(pm) = project
-        .pm
-        .filter(|_| plan.add.contains_key(Path::new(ESLINT_CONFIG)))
-    {
+    // plinth writes these configs in Prettier's default style, or none; the project's own Prettier
+    // then puts them in the project's style, so `just format-check` passes on them.
+    let formatted: Vec<&str> = FORMATTED
+        .into_iter()
+        .filter(|f| plan.add.contains_key(Path::new(f)))
+        .collect();
+    if let Some(pm) = project.pm.filter(|_| !formatted.is_empty()) {
         steps.push(Step::new(
             ["mise", "exec", "--"]
                 .into_iter()
                 .chain(pm.exec().split(' '))
-                .chain(["prettier", "--write", ESLINT_CONFIG]),
+                .chain(["prettier", "--write"])
+                .chain(formatted),
         ));
     }
     steps.push(Step::new(["mise", "exec", "--", "just", "setup"]));
@@ -473,13 +543,13 @@ mod tests {
             typescript(Pm::Npm, vec![member(kind, tsconfig)])[Path::new("justfile")].clone()
         };
         let astro = justfile(Kind::Astro, Tsconfig::Plain);
-        assert!(astro.contains("npx --no -- astro check --root .\n"));
-        assert!(astro.contains("npx --no -- astro build --root .\n"));
+        assert!(astro.contains("npx --no -- astro check\n"));
+        assert!(astro.contains("npx --no -- astro build\n"));
         let web = justfile(Kind::Web, Tsconfig::Solution);
         assert!(web.contains("npx --no -- tsc -b .\n"));
-        assert!(web.contains("npx --no -- vite build .\n"));
+        assert!(web.contains("npx --no -- vite build\n"));
         let api = justfile(Kind::Api, Tsconfig::Plain);
-        assert!(api.contains("npx --no -- tsc --noEmit -p .\n"));
+        assert!(api.contains("npx --no -- tsc --noEmit --skipLibCheck -p .\n"));
         assert!(api.contains("# Build what the project ships; nothing yet\nbuild:\n\n"));
         assert!(!justfile(Kind::Lib, Tsconfig::None).contains("tsc"));
     }
@@ -550,10 +620,14 @@ mod tests {
         )
         .unwrap();
         let lines = |root: &Path| -> Vec<String> {
-            setup_steps(root, &crate::lang::detect(root).unwrap(), &Plan::default())
-                .iter()
-                .map(ToString::to_string)
-                .collect()
+            setup_steps(
+                root,
+                &crate::lang::detect(root, "demo").unwrap(),
+                &Plan::default(),
+            )
+            .iter()
+            .map(ToString::to_string)
+            .collect()
         };
         let fresh = lines(tmp.path());
         assert!(fresh.iter().any(|l| l.starts_with("git init")));
