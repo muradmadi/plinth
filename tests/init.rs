@@ -1,4 +1,4 @@
-//! Runs the built plinth binary the way someone would, against temporary directories.
+//! Runs the built sadr binary the way someone would, against temporary directories.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,11 +6,11 @@ use std::process::{Command, Output};
 
 use tempfile::TempDir;
 
-fn plinth(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_plinth"))
+fn sadr(args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_sadr"))
         .args(args)
         .output()
-        .expect("plinth should start")
+        .expect("sadr should start")
 }
 
 /// Every file under `root`, as sorted paths relative to it.
@@ -55,7 +55,7 @@ const PACKAGE_JSON: &str = r#"{
 "#;
 const ASTRO_AGENTS_MD: &str = "## Development\n\nUse `astro dev --background`.\n";
 
-/// A directory named `name` holding what create-astro writes that plinth looks at, with the
+/// A directory named `name` holding what create-astro writes that sadr looks at, with the
 /// lockfile of the package manager that installed it.
 fn astro_project(tmp: &TempDir, name: &str, lockfile: &str) -> PathBuf {
     let root = tmp.path().join(name);
@@ -77,7 +77,7 @@ fn init_without_setup(root: &Path, extra: &[&str]) -> Output {
         root.to_str().unwrap(),
     ];
     args.extend(extra);
-    plinth(&args)
+    sadr(&args)
 }
 
 fn assert_ok(out: &Output) {
@@ -114,8 +114,8 @@ fn adds_the_tooling_and_leaves_the_code_alone() {
         "README.md",
         "justfile",
         "mise.toml",
-        "plinth.just",
         "release-please-config.json",
+        "sadr.just",
         "src/main.rs",
     ];
     assert_eq!(tree(&root), expected.map(PathBuf::from));
@@ -151,7 +151,7 @@ fn keeps_existing_files_and_appends_missing_ignores() {
         "# mine\n"
     );
     let ignore = fs::read_to_string(root.join(".gitignore")).unwrap();
-    assert!(ignore.starts_with("/target\n\n# Added by plinth"));
+    assert!(ignore.starts_with("/target\n\n# Added by sadr"));
     assert_eq!(ignore.matches("/target").count(), 1);
     assert!(ignore.ends_with("\n*.db\n"));
     assert!(String::from_utf8_lossy(&out.stdout).contains("  README.md"));
@@ -221,9 +221,9 @@ fn adds_the_tooling_to_an_astro_project_and_leaves_its_code_alone() {
         "mise.toml",
         "package-lock.json",
         "package.json",
-        "plinth.eslint.mjs",
-        "plinth.just",
         "release-please-config.json",
+        "sadr.eslint.mjs",
+        "sadr.just",
         "src/pages/index.astro",
     ];
     assert_eq!(tree(&root), expected.map(PathBuf::from));
@@ -236,7 +236,7 @@ fn adds_the_tooling_to_an_astro_project_and_leaves_its_code_alone() {
     assert!(agents_md.contains("\n## Git and GitHub\n"));
     let ignore = fs::read_to_string(root.join(".gitignore")).unwrap();
     assert!(
-        ignore.ends_with("# Added by plinth\n*.tsbuildinfo\n.env\n.env.*\n!.env.example\n*.db\n")
+        ignore.ends_with("# Added by sadr\n*.tsbuildinfo\n.env\n.env.*\n!.env.example\n*.db\n")
     );
     assert!(
         fs::read_to_string(root.join("release-please-config.json"))
@@ -244,7 +244,7 @@ fn adds_the_tooling_to_an_astro_project_and_leaves_its_code_alone() {
             .contains("\"release-type\": \"node\"")
     );
     assert!(
-        fs::read_to_string(root.join("plinth.just"))
+        fs::read_to_string(root.join("sadr.just"))
             .unwrap()
             .contains("npx --no -- astro check")
     );
@@ -257,7 +257,7 @@ fn adds_the_tooling_to_an_astro_project_and_leaves_its_code_alone() {
 fn installs_the_astro_gate_with_the_projects_package_manager() {
     let tmp = TempDir::new().unwrap();
     let root = astro_project(&tmp, "site", "pnpm-lock.yaml");
-    let out = plinth(&[
+    let out = sadr(&[
         "init",
         "--dry-run",
         "--no-github",
@@ -312,7 +312,7 @@ fn dry_run_lists_files_and_commands_but_writes_nothing() {
     let tmp = TempDir::new().unwrap();
     let root = cargo_project(&tmp, "demo");
     let before = tree(&root);
-    let out = plinth(&[
+    let out = sadr(&[
         "init",
         "--dry-run",
         "--owner",
@@ -340,7 +340,7 @@ fn dry_run_lists_files_and_commands_but_writes_nothing() {
 fn github_needs_the_setup_that_makes_a_git_repo() {
     let tmp = TempDir::new().unwrap();
     let root = cargo_project(&tmp, "demo");
-    let out = plinth(&["init", "--no-setup", "--dir", root.to_str().unwrap()]);
+    let out = sadr(&["init", "--no-setup", "--dir", root.to_str().unwrap()]);
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("--no-github"));
 }
@@ -360,7 +360,7 @@ fn github_refuses_a_repo_it_cant_push_cleanly() {
     let tmp = TempDir::new().unwrap();
     let root = cargo_project(&tmp, "demo");
     let dry_run = || {
-        plinth(&[
+        sadr(&[
             "init",
             "--dry-run",
             "--owner",
@@ -402,7 +402,7 @@ fn github_refuses_a_repo_it_cant_push_cleanly() {
     assert!(String::from_utf8_lossy(&out.stderr).contains("already has a git remote"));
 }
 
-/// The ruleset plinth applies requires a status check named `check`, so CI must have that job.
+/// The ruleset sadr applies requires a status check named `check`, so CI must have that job.
 #[test]
 fn ci_has_the_job_the_ruleset_requires() {
     let tmp = TempDir::new().unwrap();
@@ -414,13 +414,13 @@ fn ci_has_the_job_the_ruleset_requires() {
 
 const REPO: &str = env!("CARGO_MANIFEST_DIR");
 
-/// plinth's own repo is a Rust project set up the way plinth sets one up. Setting up plinth's bare
+/// sadr's own repo is a Rust project set up the way sadr sets one up. Setting up sadr's bare
 /// crate must reproduce this repo's tooling byte for byte, apart from the files that describe
-/// plinth itself, so the templates can't drift from what the repo actually runs.
+/// sadr itself, so the templates can't drift from what the repo actually runs.
 #[test]
-fn setting_up_plinth_reproduces_this_repo() {
+fn setting_up_sadr_reproduces_this_repo() {
     let tmp = TempDir::new().unwrap();
-    let root = tmp.path().join("plinth");
+    let root = tmp.path().join("sadr");
     fs::create_dir_all(root.join("src")).unwrap();
     let repo = Path::new(REPO);
     fs::copy(repo.join("Cargo.toml"), root.join("Cargo.toml")).unwrap();
@@ -435,9 +435,8 @@ fn setting_up_plinth_reproduces_this_repo() {
             continue;
         }
         let generated = fs::read_to_string(root.join(&path)).unwrap();
-        let ours = fs::read_to_string(repo.join(&path)).unwrap_or_else(|_| {
-            panic!("plinth generates {} but this repo has none", path.display())
-        });
+        let ours = fs::read_to_string(repo.join(&path))
+            .unwrap_or_else(|_| panic!("sadr generates {} but this repo has none", path.display()));
         assert_eq!(
             generated,
             ours,
@@ -447,10 +446,10 @@ fn setting_up_plinth_reproduces_this_repo() {
     }
 }
 
-/// And the other way round: plinth run on its own repo finds nothing to add.
+/// And the other way round: sadr run on its own repo finds nothing to add.
 #[test]
-fn plinth_finds_nothing_to_add_to_this_repo() {
-    let out = plinth(&[
+fn sadr_finds_nothing_to_add_to_this_repo() {
+    let out = sadr(&[
         "init",
         "--no-setup",
         "--no-github",
@@ -458,7 +457,7 @@ fn plinth_finds_nothing_to_add_to_this_repo() {
         "--dir",
         REPO,
         "--name",
-        "plinth",
+        "sadr",
     ]);
     assert_ok(&out);
     let stdout = String::from_utf8_lossy(&out.stdout);
@@ -478,7 +477,7 @@ fn a_new_cargo_project_passes_its_own_gate() {
         .output()
         .unwrap();
     assert_ok(&new);
-    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    let out = sadr(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
     assert_ok(&out);
     assert!(root.join("Cargo.lock").exists());
     assert!(root.join(".git").exists());
@@ -533,7 +532,7 @@ fn with_tools(layer: &str, dir: &Path, command: &[&str]) -> Output {
 }
 
 /// The whole path from a project's own tool: each of `commands` runs in turn, the first in a fresh
-/// directory and the rest in the `site` it creates; then plinth with its setup, then the project's
+/// directory and the rest in the `site` it creates; then sadr with its setup, then the project's
 /// CI recipe, which installs from the lockfile, runs the gate and builds.
 fn a_new_project_passes_its_own_ci(layer: &str, commands: &[&[&str]]) {
     let tmp = TempDir::new().unwrap();
@@ -542,7 +541,7 @@ fn a_new_project_passes_its_own_ci(layer: &str, commands: &[&[&str]]) {
         let dir = if i == 0 { tmp.path() } else { root.as_path() };
         assert_ok_verbose(&with_tools(layer, dir, command));
     }
-    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    let out = sadr(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
     assert_ok_verbose(&out);
     assert_ok_verbose(&just(&root, "ci"));
 }
@@ -659,9 +658,9 @@ fn a_new_bun_package_on_typescript_7_passes_its_own_ci() {
     let root = tmp.path().join("core");
     fs::create_dir(&root).unwrap();
     assert_ok_verbose(&with_tools("typescript-bun", &root, &["bun", "init", "-y"]));
-    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    let out = sadr(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
     assert_ok_verbose(&out);
-    assert!(root.join("plinth.oxlintrc.json").exists());
+    assert!(root.join("sadr.oxlintrc.json").exists());
     assert!(!root.join("eslint.config.mjs").exists());
     assert_ok_verbose(&just(&root, "ci"));
 
@@ -677,7 +676,7 @@ fn a_new_bun_package_on_typescript_7_passes_its_own_ci() {
     assert!(String::from_utf8_lossy(&lint.stdout).contains("no-unsafe-member-access"));
 }
 
-/// A monorepo made the way its packages' own tools make them, with no root: plinth assembles the
+/// A monorepo made the way its packages' own tools make them, with no root: sadr assembles the
 /// root, installs once there, and the whole workspace passes one gate.
 /// Makes a monorepo's packages with `commands`, sets it up, runs each of `recipes` once as its owner
 /// would, then `just ci`.
@@ -692,7 +691,7 @@ fn a_new_monorepo_passes_its_own_ci(
     for command in commands {
         assert_ok_verbose(&with_tools(layer, &root, command));
     }
-    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    let out = sadr(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
     assert_ok_verbose(&out);
     for recipe in recipes {
         assert_ok_verbose(&just(&root, recipe));
@@ -753,12 +752,12 @@ fn a_new_bun_monorepo_passes_its_own_ci() {
     assert!(manifest.contains("\"apps/*\""), "{manifest}");
     assert!(!root.join("apps/api/bun.lock").exists());
     assert!(root.join("bun.lock").exists());
-    let justfile = fs::read_to_string(root.join("plinth.just")).unwrap();
+    let justfile = fs::read_to_string(root.join("sadr.just")).unwrap();
     assert!(justfile.contains("cd apps/site && bun x --no-install astro check"));
     assert!(justfile.contains("tsc -b apps/web"));
     assert!(justfile.contains("tsc --noEmit --skipLibCheck -p packages/core"));
 
-    // The monorepo grows by a second app; plinth fits the gate to it and leaves the rest alone.
+    // The monorepo grows by a second app; sadr fits the gate to it and leaves the rest alone.
     for command in [
         &[
             "bun",
@@ -773,16 +772,16 @@ fn a_new_bun_monorepo_passes_its_own_ci() {
     ] {
         assert_ok_verbose(&with_tools("typescript-bun", &root, command));
     }
-    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    let out = sadr(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
     assert_ok_verbose(&out);
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
-        stdout.contains("Updated:\n  plinth.eslint.mjs\n  plinth.just\n"),
+        stdout.contains("Updated:\n  sadr.eslint.mjs\n  sadr.just\n"),
         "{stdout}"
     );
-    let justfile = fs::read_to_string(root.join("plinth.just")).unwrap();
+    let justfile = fs::read_to_string(root.join("sadr.just")).unwrap();
     assert!(justfile.contains("cd apps/admin && bun x --no-install vite build"));
-    // The Prettier config stays the project's: plinth says what to add, and its owner adds it.
+    // The Prettier config stays the project's: sadr says what to add, and its owner adds it.
     let (_, rest) = stdout.split_once("for apps/admin; add ").expect(&stdout);
     let (style, _) = rest.split_once(" to its \"overrides\"").unwrap();
     let rc = root.join(".prettierrc.json");
@@ -832,11 +831,11 @@ fn a_new_pnpm_monorepo_passes_its_own_ci() {
                 "apps/web/package.json",
             ],
         ],
-        // create-hono's Node starter isn't Prettier-formatted, and plinth leaves code alone.
+        // create-hono's Node starter isn't Prettier-formatted, and sadr leaves code alone.
         &["format"],
     );
     assert!(root.join("pnpm-workspace.yaml").exists());
-    assert!(root.join("plinth.oxlintrc.json").exists());
+    assert!(root.join("sadr.oxlintrc.json").exists());
     fs::remove_dir_all(root.parent().unwrap()).unwrap();
 }
 
@@ -882,7 +881,7 @@ fn a_new_typescript_7_monorepo_passes_its_own_ci() {
         ],
         &[],
     );
-    let rc = fs::read_to_string(root.join("plinth.oxlintrc.json")).unwrap();
+    let rc = fs::read_to_string(root.join("sadr.oxlintrc.json")).unwrap();
     assert!(rc.contains("\"apps/web/src/main.tsx\""));
     fs::remove_dir_all(root.parent().unwrap()).unwrap();
 }
@@ -920,7 +919,7 @@ fn a_new_npm_monorepo_passes_its_own_ci() {
         ],
         &[],
     );
-    let justfile = fs::read_to_string(root.join("plinth.just")).unwrap();
+    let justfile = fs::read_to_string(root.join("sadr.just")).unwrap();
     assert!(justfile.contains("cd apps/site && npx --no -- astro build"));
     fs::remove_dir_all(root.parent().unwrap()).unwrap();
 }

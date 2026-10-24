@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, bail};
 
-/// One command plinth runs in the new project, kept as data so `--dry-run` can print exactly what
+/// One command sadr runs in the new project, kept as data so `--dry-run` can print exactly what
 /// a real run would do.
 pub struct Step {
     pub args: Vec<String>,

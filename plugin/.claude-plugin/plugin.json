@@ -1,9 +1,9 @@
 {
-  "name": "plinth",
-  "description": "Set up the tooling around a new project and its GitHub repo with the plinth CLI",
+  "name": "sadr",
+  "description": "Set up the tooling around a new project and its GitHub repo with the sadr CLI",
   "author": {
     "name": "Murad Madi"
   },
-  "homepage": "https://github.com/muradmadi/plinth",
+  "homepage": "https://github.com/muradmadi/sadr",
   "license": "MIT"
 }

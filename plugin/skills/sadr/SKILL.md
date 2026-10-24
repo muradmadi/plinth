@@ -1,28 +1,28 @@
 ---
-name: plinth
-description: Set up a project's tooling and GitHub repo with the plinth CLI, after creating the project with its own tool (cargo new for Rust; create-astro, create-vite, create-hono or bun init for TypeScript). Use when the user wants to start, scaffold, create, bootstrap or set up a new project, app, tool or repo, wants the house tooling (mise, just, CI, release-please, the main ruleset) added to a project that has none yet, or asks for plinth by name.
+name: sadr
+description: Set up a project's tooling and GitHub repo with the sadr CLI, after creating the project with its own tool (cargo new for Rust; create-astro, create-vite, create-hono or bun init for TypeScript). Use when the user wants to start, scaffold, create, bootstrap or set up a new project, app, tool or repo, wants the house tooling (mise, just, CI, release-please, the main ruleset) added to a project that has none yet, or asks for sadr by name.
 ---
 
-# plinth
+# sadr
 
-plinth adds the tooling around a project: mise and just with a `just check` gate, CI,
+sadr adds the tooling around a project: mise and just with a `just check` gate, CI,
 release-please, Renovate, PR and issue templates, a pre-commit guard, AGENTS.md and Claude Code
 settings. Then it creates the GitHub repo with squash-only merges, the label set and a `main`
 ruleset. It never touches the project's code and never prompts; every choice is a flag. The project
 comes first, from its own tool. Your job is to collect the choices, create the project, show
-plinth's plan, get a yes, and run it.
+sadr's plan, get a yes, and run it.
 
-## 1. Check plinth is there
+## 1. Check sadr is there
 
-Run `plinth --version`. If it isn't found, stop and tell the user it installs with
-`mise use -g github:muradmadi/plinth`. Don't install it yourself.
+Run `sadr --version`. If it isn't found, stop and tell the user it installs with
+`mise use -g github:muradmadi/sadr`. Don't install it yourself.
 
 ## 2. Collect the choices
 
-plinth sets up Rust projects and TypeScript ones so far: an Astro site, a React app built with
+sadr sets up Rust projects and TypeScript ones so far: an Astro site, a React app built with
 Vite, a Hono server, or a plain package such as a library or CLI, alone or several together in a
 monorepo. It finds them from `Cargo.toml` or `package.json`. If the user wants anything else, such
-as a Next.js app, a Cargo workspace or a Python tool, say plinth can't set it up yet and stop. Don't
+as a Next.js app, a Cargo workspace or a Python tool, say sadr can't set it up yet and stop. Don't
 substitute something it supports.
 
 Settle, asking only for what the user hasn't already said:
@@ -41,11 +41,11 @@ For a project that already exists, skip the kind and use its directory.
 
 ## 3. Create the project
 
-Going through mise works on a machine with no Rust or Node set up outside a project; plinth pins
+Going through mise works on a machine with no Rust or Node set up outside a project; sadr pins
 the project's own versions after.
 
 - **Rust:** `mise exec rust -- cargo new <dir>`, with `--lib` for a library.
-- **Astro:** the minimal starter, installed, without a git repo of its own (plinth makes one):
+- **Astro:** the minimal starter, installed, without a git repo of its own (sadr makes one):
   - npm: `mise exec node@24 -- npm create astro@latest <dir> -- --template minimal --install --no-git --yes`
   - pnpm: `mise exec node@24 pnpm -- pnpm create astro@latest <dir> --template minimal --install --no-git --yes`
   - bun: `mise exec node@24 bun -- bun create astro@latest <dir> --template minimal --install --no-git --yes`
@@ -57,27 +57,27 @@ the project's own versions after.
 - **Hono server:** `mise exec node@24 bun -- bun create hono@latest <dir> --template bun --install
   --pm bun`.
 - **Plain package:** `mise exec bun -- bun init -y` in a new `<dir>`. It asks for TypeScript 7,
-  so plinth lints it with oxlint instead of ESLint.
+  so sadr lints it with oxlint instead of ESLint.
 
 - **Monorepo:** make the directory, then each package in it with the command above, using
   `apps/<name>` or `packages/<name>` as `<dir>` and running from the monorepo's directory. With
   pnpm, `pnpm create hono@latest <dir> --template nodejs --install --pm pnpm` makes the server.
   A workspace runs one TypeScript: `bun init` and create-hono's Node starter ask for 7,
-  create-vite for 6 and Astro needs 6. If the packages disagree, plinth refuses and names them;
+  create-vite for 6 and Astro needs 6. If the packages disagree, sadr refuses and names them;
   with no Astro site, change create-vite's `"~6.0.3"` to `"^7.0.2"`, otherwise change the others'
-  to `"~6.0"`. plinth then assembles the root and
+  to `"~6.0"`. sadr then assembles the root and
   installs once there. create-hono's Node starter isn't Prettier-formatted, so run `just format`
-  once after plinth if `just check` says so.
+  once after sadr if `just check` says so.
 
 The directory must not already exist; if it does, ask whether to set up that project instead.
 Never delete a directory to make room.
 
 ## 4. Show the plan
 
-Run plinth with `--dry-run` first, for example:
+Run sadr with `--dry-run` first, for example:
 
 ```sh
-plinth init --dir ~/Projects/demo --description "What it does" --dry-run
+sadr init --dir ~/Projects/demo --description "What it does" --dry-run
 ```
 
 Show the user the output: the files it adds, the files it leaves alone, the setup commands (for
@@ -91,11 +91,11 @@ public, before going on.
 Run the same command without `--dry-run`. It takes a minute or so: it installs the pinned tools
 through mise before creating the repo.
 
-If it fails, report the error as plinth printed it. A taken repo name, an existing git remote, or
+If it fails, report the error as sadr printed it. A taken repo name, an existing git remote, or
 uncommitted changes in a project with commits are caught before anything is written; ask the user
 how to go on. Don't commit or stash their changes yourself.
 
-If the project already had a `CLAUDE.md`, plinth says so: Claude Code then reads that file instead
+If the project already had a `CLAUDE.md`, sadr says so: Claude Code then reads that file instead
 of the new AGENTS.md. Offer to add `@AGENTS.md` as its first line, and add it only on a yes.
 
 ## 6. Report
@@ -108,7 +108,7 @@ Say where the project is and link the repo. Then the two things to know:
 
 ## Later: a new package
 
-When a package is added to a monorepo plinth set up, run `plinth init --no-github --dry-run` in its
-root, then without `--dry-run` on a yes. It rewrites `plinth.just` and `plinth.eslint.mjs` for the
+When a package is added to a monorepo sadr set up, run `sadr init --no-github --dry-run` in its
+root, then without `--dry-run` on a yes. It rewrites `sadr.just` and `sadr.eslint.mjs` for the
 new package and installs any dev dependency it now needs. If it prints a note about
 `.prettierrc.json`, add what it says to that file, then run `just format` and `just check`.

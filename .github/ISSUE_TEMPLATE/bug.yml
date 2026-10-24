@@ -1,5 +1,5 @@
 name: Bug
-description: Something plinth does wrong
+description: Something sadr does wrong
 labels: [bug]
 body:
   - type: textarea

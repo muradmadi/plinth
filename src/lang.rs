@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 
 use crate::workspace;
 
-/// A language plinth knows how to set up, found from the project's own manifest. Each one has a
+/// A language sadr knows how to set up, found from the project's own manifest. Each one has a
 /// template layer under templates/ with the same name, written on top of the base layer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Lang {
@@ -67,7 +67,7 @@ pub struct Member {
     pub tsconfig: Tsconfig,
 }
 
-/// What plinth needs to know about the project it is setting up.
+/// What sadr needs to know about the project it is setting up.
 #[derive(Debug)]
 pub struct Project {
     pub lang: Lang,
@@ -83,7 +83,7 @@ pub struct Project {
     pub typescript: TsMajor,
     /// Whether the root is a workspace of several packages rather than a package itself.
     pub workspace: bool,
-    /// What plinth does to turn packages without a root into a workspace.
+    /// What sadr does to turn packages without a root into a workspace.
     pub assembly: Option<Assembly>,
     /// Every dependency the root manifest already names, so setup adds only the ones it lacks.
     deps: BTreeSet<String>,
@@ -102,14 +102,14 @@ pub struct Assembly {
     pub remove: Vec<PathBuf>,
 }
 
-/// A dev dependency of the gate: its name, what to install, and the file plinth writes that runs
+/// A dev dependency of the gate: its name, what to install, and the file sadr writes that runs
 /// it. A project that keeps its own file there keeps its own tools for it too.
 type DevDep = (&'static str, &'static str, &'static str);
 
 const PRETTIER: &str = ".prettierrc.json";
-const ESLINT: &str = "plinth.eslint.mjs";
-const OXLINT: &str = "plinth.oxlintrc.json";
-const JUSTFILE: &str = "plinth.just";
+const ESLINT: &str = "sadr.eslint.mjs";
+const OXLINT: &str = "sadr.oxlintrc.json";
+const JUSTFILE: &str = "sadr.just";
 
 /// The dev dependencies every TypeScript 6 gate runs.
 const TS_DEV_DEPS: [DevDep; 6] = [
@@ -146,7 +146,7 @@ const ASTRO_DEV_DEPS: [DevDep; 3] = [
     ("@astrojs/check", "@astrojs/check", JUSTFILE),
 ];
 
-/// Frameworks plinth recognises but can't set up yet, as (dependency, name).
+/// Frameworks sadr recognises but can't set up yet, as (dependency, name).
 const UNSUPPORTED: [(&str, &str); 11] = [
     ("next", "Next.js"),
     ("nuxt", "Nuxt"),
@@ -252,7 +252,7 @@ impl Project {
     }
 
     /// Commands that finish the project once its tools are installed, leaving out what it already
-    /// has. `writes` says whether plinth is adding a file, which decides the dev dependencies that
+    /// has. `writes` says whether sadr is adding a file, which decides the dev dependencies that
     /// file's tool needs. Each runs through `mise exec`, so it gets the versions pinned in the
     /// project's mise.toml.
     pub fn setup(&self, root: &Path, writes: impl Fn(&str) -> bool) -> Vec<Vec<String>> {
@@ -303,7 +303,7 @@ impl Project {
     }
 }
 
-/// Works out the language from the manifest in `root`. `name` names the root package plinth writes
+/// Works out the language from the manifest in `root`. `name` names the root package sadr writes
 /// for a monorepo that has none.
 pub fn detect(root: &Path, name: &str) -> Result<Project> {
     let cargo = root.join("Cargo.toml");
@@ -312,7 +312,7 @@ pub fn detect(root: &Path, name: &str) -> Result<Project> {
         (true, false) => rust(&cargo),
         (false, true) => typescript(root, &node),
         (true, true) => bail!(
-            "{} has both a Cargo.toml and a package.json; plinth sets up one language per project",
+            "{} has both a Cargo.toml and a package.json; sadr sets up one language per project",
             root.display()
         ),
         (false, false) if !workspace::find_members(root).is_empty() => assemble(root, name),
@@ -417,7 +417,7 @@ fn member(root: &Path, path: String) -> Result<(Member, Option<TsMajor>)> {
 }
 
 /// A monorepo whose packages each came from their own tool, with no root package.json yet: the
-/// workspace plinth makes of them.
+/// workspace sadr makes of them.
 fn assemble(root: &Path, name: &str) -> Result<Project> {
     let paths = workspace::find_members(root);
     let mut pms = BTreeSet::new();
@@ -522,7 +522,7 @@ fn classify(deps: &BTreeSet<String>, manifest: &Path) -> Result<Kind> {
     }
     if let Some((_, name)) = UNSUPPORTED.iter().find(|(dep, _)| deps.contains(*dep)) {
         bail!(
-            "{} uses {name}, which plinth can't set up yet; it sets up Astro sites, React apps \
+            "{} uses {name}, which sadr can't set up yet; it sets up Astro sites, React apps \
              built with Vite, Hono servers and plain TypeScript packages",
             manifest.display()
         );
@@ -531,7 +531,7 @@ fn classify(deps: &BTreeSet<String>, manifest: &Path) -> Result<Kind> {
     match (has("react"), has("vite"), has("hono")) {
         (true, true, _) => Ok(Kind::Web),
         (true, false, _) => bail!(
-            "{} uses React without Vite; plinth sets up React apps built with Vite so far (`npm \
+            "{} uses React without Vite; sadr sets up React apps built with Vite so far (`npm \
              create vite`)",
             manifest.display()
         ),
@@ -579,7 +579,7 @@ fn gate_typescript(asks: &[(String, Option<TsMajor>)], members: &[Member]) -> Re
     if !six.is_empty() {
         bail!(
             "packages ask for TypeScript 6 ({}) and 7 ({}); a workspace's gate runs one \
-             TypeScript, so change one of them, then run plinth again",
+             TypeScript, so change one of them, then run sadr again",
             six.join(", "),
             seven.join(", ")
         );
@@ -587,7 +587,7 @@ fn gate_typescript(asks: &[(String, Option<TsMajor>)], members: &[Member]) -> Re
     if let Some(site) = members.iter().find(|m| m.kind == Kind::Astro) {
         bail!(
             "{} asks for TypeScript 7, but {} is an Astro site and `astro check` needs TypeScript 6 \
-             until @astrojs/check supports 7. Change it to \"~6.0\", then run plinth again",
+             until @astrojs/check supports 7. Change it to \"~6.0\", then run sadr again",
             seven.join(", "),
             if site.path == "." {
                 "the project"
@@ -622,7 +622,7 @@ fn package_manager(root: &Path, manifest: &Value) -> Result<Pm> {
 /// The package manager named by package.json's `packageManager` field, or else by the lockfile in
 /// `root`; None if there is neither.
 fn declared_pm(root: &Path, manifest: &Value) -> Result<Option<Pm>> {
-    let supported = "plinth supports npm, pnpm and bun";
+    let supported = "sadr supports npm, pnpm and bun";
     if let Some(field) = manifest.get("packageManager").and_then(Value::as_str) {
         let name = field.split('@').next().unwrap_or_default();
         return match name {
