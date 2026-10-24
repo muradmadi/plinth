@@ -71,6 +71,8 @@ fn adds_the_tooling_and_leaves_the_code_alone() {
     assert_ok(&init_without_setup(&root, &["--description", "A demo"]));
 
     let expected = [
+        ".editorconfig",
+        ".gitattributes",
         ".githooks/pre-commit",
         ".github/ISSUE_TEMPLATE/bug.yml",
         ".github/ISSUE_TEMPLATE/config.yml",

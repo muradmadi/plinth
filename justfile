@@ -33,9 +33,10 @@ lint:
 test:
     cargo test --locked -- --include-ignored
 
-# Workflow mistakes and security problems, the commit hook, and secrets in any commit. zizmor also
-# runs its online audits when GH_TOKEN is set, as it is in CI.
+# Spelling, workflow mistakes and security problems, the commit hook, and secrets in any commit.
+# zizmor also runs its online audits when GH_TOKEN is set, as it is in CI.
 audit:
+    typos --hidden --exclude .git
     actionlint
     zizmor --no-progress .github/workflows
     shellcheck .githooks/pre-commit

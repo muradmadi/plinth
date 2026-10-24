@@ -43,8 +43,9 @@ plinth init --description "…"          # adds the tooling, sets it up, creates
 ```
 
 plinth works out the language from the project's manifest; Rust (`Cargo.toml`) is the only one so
-far. It adds the files the project lacks, appends missing lines to `.gitignore`, and lists the
-files it left alone because the project has its own. Running it again adds nothing.
+far. It adds the files the project lacks, appends missing lines to `.gitignore` and
+`.gitattributes`, and lists the files it left alone because the project has its own. Running it
+again adds nothing.
 
 The repo is named after the directory unless `--name` gives another, is private unless `--public`
 is given, and goes under the account gh is logged in as unless `--owner` names another. It gets
@@ -59,5 +60,5 @@ Requires [mise](https://mise.jdx.dev).
 ```sh
 mise install    # rust and just, pinned in mise.toml
 just setup      # commit guard
-just check      # format, lint, tests, workflow and secret checks
+just check      # format, lint, tests, spelling, workflow and secret checks
 ```
