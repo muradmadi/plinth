@@ -2,3 +2,8 @@
 just = "1.59"
 # rustfmt and clippy are part of the gate; CI's minimal toolchain lacks them without this.
 rust = { version = "1.99", components = "rustfmt,clippy" }
+# `just audit`: workflow mistakes and security problems, shell scripts, secrets.
+actionlint = "1.7.12"
+zizmor = "1.31.1"
+shellcheck = "0.11.0"
+gitleaks = "8.30.1"

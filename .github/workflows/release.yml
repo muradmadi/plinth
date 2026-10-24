@@ -19,15 +19,16 @@ concurrency:
   group: release
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  actions: write
+permissions: {}
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # the release commit, tag and GitHub Release
+      pull-requests: write # the release PR
+      issues: write # labels on the release PR
+      actions: write # gh workflow run publish.yml
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release

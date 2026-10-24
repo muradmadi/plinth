@@ -56,6 +56,9 @@ The `publish.yml` hook in `release.yml` is shared with every generated project; 
 
 ## Toolchain
 
-Rust and just are pinned in `mise.toml`; run `mise install`, then `just setup` once. `just check` is
-the gate: `cargo fmt --check`, clippy with warnings as errors, `cargo test`. Murad is new to Rust
-(background in C# and C++), so explain Rust-specific choices briefly in PRs where they aren't obvious.
+Rust, just and the audit tools are pinned in `mise.toml`; run `mise install`, then `just setup` once.
+`just check` is the gate: `cargo fmt --check`, clippy with warnings as errors, `cargo test`, then
+`just audit` (actionlint, zizmor, shellcheck on the hook, gitleaks over every commit). A zizmor
+finding is fixed, or ignored inline with `# zizmor: ignore[<audit>]` and the reason. Murad is new to
+Rust (background in C# and C++), so explain Rust-specific choices briefly in PRs where they aren't
+obvious.

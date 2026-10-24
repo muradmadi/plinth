@@ -1,10 +1,11 @@
 # plinth
 
 Sets up the tooling around a project, then creates and configures its GitHub repo the same way
-every time: mise and just with a `just check` gate, CI, squash-only PRs behind a `main` ruleset, a
-Conventional Commit title check, release-please and monthly Renovate updates. It never touches the
-project's code: create the project with its own tool first, then run `plinth init` in it. A Claude
-Code plugin in this repo drives the same CLI.
+every time: mise and just with a `just check` gate that also audits the workflows (actionlint,
+zizmor) and scans for secrets (gitleaks, in the gate and the commit hook), CI, squash-only PRs
+behind a `main` ruleset, a Conventional Commit title check, release-please and monthly Renovate
+updates. It never touches the project's code: create the project with its own tool first, then run
+`plinth init` in it. A Claude Code plugin in this repo drives the same CLI.
 
 ## Install
 
@@ -58,5 +59,5 @@ Requires [mise](https://mise.jdx.dev).
 ```sh
 mise install    # rust and just, pinned in mise.toml
 just setup      # commit guard
-just check      # format, lint, tests
+just check      # format, lint, tests, workflow and secret checks
 ```

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Refuses commits that would carry secrets or data. .gitignore already excludes them, but
-# `git add -f` or a bad ignore rule gets past it; this does not.
+# Refuses commits that would carry secrets or data. .gitignore already excludes the files, but
+# `git add -f` or a bad ignore rule gets past it; this does not. gitleaks then checks the staged
+# changes for secrets inside files.
 # Installed by `just setup` (core.hooksPath).
 set -euo pipefail
 
@@ -11,5 +12,11 @@ blocked=$(git diff --cached --name-only --diff-filter=ACMR | grep -E \
 if [[ -n "$blocked" ]]; then
   echo "pre-commit: refusing to commit secrets or data files:" >&2
   while IFS= read -r path; do echo "  $path"; done <<< "$blocked" >&2
+  exit 1
+fi
+
+# Secrets inside files: keys, tokens and passwords in what is staged.
+if ! mise exec -- gitleaks git --pre-commit --staged --redact --no-banner --verbose --log-level warn; then
+  echo "pre-commit: gitleaks found a secret in the staged changes; remove it before committing" >&2
   exit 1
 fi
