@@ -35,9 +35,10 @@ For a project that already exists, skip the kind and use its directory.
 
 ## 3. Create the project
 
-Run `cargo new <dir>` (with `--lib` for a library) through `mise exec --` if cargo isn't on the
-path. It must not already exist; if it does, ask whether to set up that project instead. Never
-delete a directory to make room.
+Run `mise exec rust -- cargo new <dir>` (with `--lib` for a library). Going through mise works on a
+machine with no Rust set up outside a project; plinth pins the project's own Rust version after.
+The directory must not already exist; if it does, ask whether to set up that project instead.
+Never delete a directory to make room.
 
 ## 4. Show the plan
 
