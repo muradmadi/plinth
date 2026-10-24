@@ -1,0 +1,72 @@
+# {{ name }} task runner. `just` on its own lists everything.
+#
+# The toolchain (node, {% if pm != "npm" %}{{ pm }}, {% endif %}just and the audit tools) is pinned in mise.toml — run `mise install` once.
+# Prettier, ESLint and the type checkers are dev dependencies, run through {{ pm }}.
+
+# List available recipes
+default:
+    @just --list --unsorted
+
+# One-time setup: commit guard
+setup:
+    git config core.hooksPath .githooks
+
+# The gate: formatting, lint, types, {% if pm == "bun" %}tests, {% endif %}then the repo's own hygiene
+check: format-check lint typecheck {% if pm == "bun" %}test {% endif %}audit
+
+# What CI runs: a clean install from the lockfile, the gate, then a build
+ci: install check build
+
+# Install exactly what the lockfile lists
+install:
+    {{ install_frozen }}
+
+# Fail on any file Prettier would change
+format-check:
+    {{ exec }} prettier --check .
+
+# Rewrite files the way Prettier and ESLint's fixers want them
+format:
+    {{ exec }} prettier --write .
+    {{ exec }} eslint --fix .
+
+# Lint every TypeScript, JavaScript{% if any_astro %} and Astro{% endif %} file; warnings fail too
+lint:
+    {{ exec }} eslint --max-warnings 0 .
+
+# Type-check the project
+typecheck:
+{%- for m in members %}
+{%- if m.kind == "astro" %}
+    {{ exec }} astro check --root {{ m.path }}
+{%- elif m.tsconfig == "solution" %}
+    {{ exec }} tsc -b {{ m.path }}
+{%- elif m.tsconfig == "plain" %}
+    {{ exec }} tsc --noEmit -p {{ m.path }}
+{%- endif %}
+{%- endfor %}
+{%- if pm == "bun" %}
+
+# Run the tests; none yet passes too
+test:
+    bun test --pass-with-no-tests
+{%- endif %}
+
+# Build what the project ships{% if not any_build %}; nothing yet{% endif %}
+build:
+{%- for m in members %}
+{%- if m.kind == "astro" %}
+    {{ exec }} astro build --root {{ m.path }}
+{%- elif m.kind == "web" %}
+    {{ exec }} vite build {{ m.path }}
+{%- endif %}
+{%- endfor %}
+
+# Spelling, workflow mistakes and security problems, the commit hook, and secrets in any commit.
+# zizmor also runs its online audits when GH_TOKEN is set, as it is in CI.
+audit:
+    typos --hidden --exclude .git
+    actionlint
+    zizmor --no-progress .github/workflows
+    shellcheck .githooks/pre-commit
+    gitleaks git --redact --no-banner

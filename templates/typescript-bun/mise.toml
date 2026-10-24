@@ -1,8 +1,8 @@
 [tools]
 just = "1.59"
-# Astro needs Node 22.23.4 or later; this is the current LTS line.
+# The current LTS line; Astro needs 22.23.4 or later.
 node = "24.22.1"
-pnpm = "12.15.0"
+bun = "1.4.4"
 # `just audit`: spelling, workflow mistakes and security problems, shell scripts, secrets.
 typos = "1.51.1"
 actionlint = "1.7.12"

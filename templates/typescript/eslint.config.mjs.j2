@@ -1,0 +1,53 @@
+// The lint half of the gate (`just lint`): typescript-eslint's strict, type-aware rules for every
+// file a tsconfig covers. Formatting is Prettier's job, so eslint-config-prettier goes last.
+import { defineConfig, globalIgnores } from "eslint/config";
+import js from "@eslint/js";
+{%- if any_astro %}
+import astro from "eslint-plugin-astro";
+{%- endif %}
+import prettier from "eslint-config-prettier";
+{%- if any_web %}
+import reactHooks from "eslint-plugin-react-hooks";
+import globals from "globals";
+{%- endif %}
+import tseslint from "typescript-eslint";
+
+export default defineConfig([
+  globalIgnores(["**/dist/", "**/.astro/"]),
+  js.configs.recommended,
+  tseslint.configs.strictTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+    rules: {
+      // Numbers in a template literal read fine; objects and unions are what this rule is for.
+      "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
+      // `onClick={() => setCount(n)}` is ordinary React; braces add nothing.
+      "@typescript-eslint/no-confusing-void-expression": ["error", { ignoreArrowShorthand: true }],
+    },
+  },
+{%- for m in members if m.kind == "web" %}
+  {
+    files: ["{{ m.prefix }}src/**/*.{ts,tsx}"],
+    extends: [reactHooks.configs.flat.recommended],
+    languageOptions: { globals: globals.browser },
+  },
+  // Vite's entry point mounts the app on `document.getElementById("root")!`.
+  {
+    files: ["{{ m.prefix }}src/main.tsx"],
+    rules: { "@typescript-eslint/no-non-null-assertion": "off" },
+  },
+{%- endfor %}
+{%- if any_astro %}
+  astro.configs.recommended,
+  // astro-eslint-parser takes `project`, not `projectService`.
+  {
+    files: ["**/*.astro"],
+    languageOptions: { parserOptions: { projectService: false, project: true } },
+  },
+{%- endif %}
+  // Config files sit outside every tsconfig, this one included.
+  { files: ["**/*.{js,mjs,cjs}"], extends: [tseslint.configs.disableTypeChecked] },
+  prettier,
+]);

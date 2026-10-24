@@ -6,7 +6,8 @@ zizmor) and scans for secrets (gitleaks, in the gate and the commit hook), CI, s
 behind a `main` ruleset, a Conventional Commit title check, release-please and monthly Renovate
 updates, and an AGENTS.md with those rules for coding agents. It never touches the project's code:
 create the project with its own tool first, then run `plinth init` in it. It sets up Rust projects
-and Astro sites so far. A Claude Code plugin in this repo drives the same CLI.
+and TypeScript ones so far: Astro sites, React apps built with Vite, Hono servers and plain
+packages. A Claude Code plugin in this repo drives the same CLI.
 
 ## Install
 
@@ -28,8 +29,9 @@ download was built by this repo's `publish.yml`.
 ```
 
 The `plinth` skill turns "start a new Rust CLI called wordcount" into `cargo new wordcount` and a
-`plinth init` call, or "start an Astro site" into create-astro and the same call: it shows the `--dry-run` first and waits for a yes before creating the GitHub
-repo. It needs the CLI installed as above.
+`plinth init` call, or "start a React app" into create-vite and the same call. It shows the
+`--dry-run` first and waits for a yes before creating the GitHub repo. It needs the CLI installed as
+above.
 
 ### Renovate
 
@@ -55,30 +57,48 @@ plinth init --dry-run              # lists the files and commands, touches nothi
 plinth init --description "…"      # adds the tooling, sets it up, creates <you>/demo
 ```
 
-An Astro site works the same way, with npm, pnpm or bun:
+A TypeScript project works the same way, with npm, pnpm or bun:
 
 ```sh
-mise exec node@24 -- npm create astro@latest site -- --template minimal --install --no-git --yes
-cd site
+mise exec node@24 bun -- bun create vite@latest web --template react-ts --no-interactive
+cd web && mise exec bun -- bun install
 plinth init --dry-run              # also lists the dev dependencies it will install
 ```
 
-plinth works out the language from the project's manifest: `Cargo.toml` for Rust, a `package.json`
-that depends on `astro` for Astro. It refuses any other project and says why. It adds the files the
-project lacks, appends missing lines to `.gitignore` and `.gitattributes`, adds its house rules to
-an AGENTS.md the project already has, and lists the files it left alone because the project has its
-own. Running it again adds nothing.
+The other starting points: `npm create astro@latest site -- --template minimal --install --no-git`
+for an Astro site, `bun create hono@latest api --template bun --install --pm bun` for a Hono server,
+and `bun init` for a plain package. plinth then works out what the project is from the manifest:
+
+- **`Cargo.toml`:** Rust.
+- **`package.json`:** TypeScript, with the package manager its lockfile names. Its dependencies say
+  what kind: `astro` for an Astro site, `react` with `vite` for a React app, `hono` for a server;
+  anything else is a plain package.
+
+It refuses what it can't set up yet and says why: Cargo and npm workspaces, Next.js, Vue, Svelte,
+Expo and other frameworks, React without Vite, yarn, and a project that asks for TypeScript 7
+(`bun init` does; change it to `~6.0`).
+
+It adds the files the project lacks, appends missing lines to `.gitignore` and `.gitattributes`,
+adds its house rules to an AGENTS.md the project already has, and lists the files it left alone
+because the project has its own, an ESLint or Prettier config under any name included. Running it
+again adds nothing.
 
 What `just check` runs:
 
 - **Rust:** rustfmt, clippy with warnings as errors, and the tests.
-- **Astro:** Prettier, ESLint and `astro check`. `just ci` also builds the site.
+- **TypeScript:**
+  - Prettier, in the style the project's tool wrote its files in;
+  - ESLint with typescript-eslint's strict, type-aware rules, plus the React hooks rules or Astro's;
+  - `tsc`, or `astro check` for an Astro site;
+  - with bun, `bun test`.
+
+  `just ci` also builds a site or app.
 
 Both also run the audit: typos, actionlint, zizmor, shellcheck and gitleaks.
 
-For Astro, plinth installs Prettier, ESLint, `@astrojs/check` and TypeScript as dev dependencies
-with the package manager the lockfile names. It also pins that package manager and Node in
-`mise.toml`.
+For TypeScript, plinth installs Prettier, ESLint, TypeScript 6 and what the kind of project needs
+as dev dependencies, with the project's own package manager. It also pins that package manager and
+Node in `mise.toml`.
 
 The repo is named after the directory unless `--name` gives another, is private unless `--public`
 is given, and goes under the account gh is logged in as unless `--owner` names another. It gets

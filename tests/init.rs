@@ -215,7 +215,7 @@ fn adds_the_tooling_to_an_astro_project_and_leaves_its_code_alone() {
         ".release-please-manifest.json",
         "AGENTS.md",
         "README.md",
-        "eslint.config.js",
+        "eslint.config.mjs",
         "justfile",
         "mise.toml",
         "package-lock.json",
@@ -232,7 +232,9 @@ fn adds_the_tooling_to_an_astro_project_and_leaves_its_code_alone() {
     assert!(agents_md.starts_with(ASTRO_AGENTS_MD));
     assert!(agents_md.contains("\n## Git and GitHub\n"));
     let ignore = fs::read_to_string(root.join(".gitignore")).unwrap();
-    assert!(ignore.ends_with("# Added by plinth\n.env\n.env.*\n!.env.example\n*.db\n"));
+    assert!(
+        ignore.ends_with("# Added by plinth\n*.tsbuildinfo\n.env\n.env.*\n!.env.example\n*.db\n")
+    );
     assert!(
         fs::read_to_string(root.join("release-please-config.json"))
             .unwrap()
@@ -263,19 +265,27 @@ fn installs_the_astro_gate_with_the_projects_package_manager() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("Would append to:\n  .gitignore\n  AGENTS.md\n"));
     assert!(stdout.contains("  mise exec -- pnpm add --save-dev prettier "));
-    assert!(stdout.contains(" typescript@~6.0\n"));
+    assert!(
+        stdout.contains(
+            " typescript@~6.0 prettier-plugin-astro eslint-plugin-astro @astrojs/check\n"
+        )
+    );
+    assert!(stdout.contains("  mise exec -- pnpm exec prettier --write eslint.config.mjs\n"));
 }
 
 #[test]
-fn refuses_a_javascript_project_that_isnt_astro() {
+fn refuses_a_framework_it_cant_set_up_yet() {
     let tmp = TempDir::new().unwrap();
     let root = astro_project(&tmp, "app", "package-lock.json");
-    let react = PACKAGE_JSON.replace("astro", "react");
-    fs::write(root.join("package.json"), &react).unwrap();
+    let next = PACKAGE_JSON.replace(
+        "\"astro\": \"^7.4.2\"",
+        "\"next\": \"^16\", \"react\": \"^19\"",
+    );
+    fs::write(root.join("package.json"), &next).unwrap();
     let before = tree(&root);
     let out = init_without_setup(&root, &[]);
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("only Astro"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("uses Next.js"));
     assert_eq!(tree(&root), before);
 }
 
@@ -489,65 +499,170 @@ fn assert_ok_verbose(out: &Output) {
     );
 }
 
-/// The whole path from create-astro with one package manager: the minimal starter, plinth with its
-/// setup, then the project's CI recipe, which installs from the lockfile, runs the gate and builds.
-/// create-astro runs on the node and package manager that `layer`'s mise.toml pins, so the test
-/// follows Renovate's bumps of them.
-fn a_new_astro_project_passes_its_own_ci(layer: &str, create: &[&str]) {
-    let mise_toml = fs::read_to_string(
-        Path::new(REPO)
-            .join("templates")
-            .join(layer)
-            .join("mise.toml"),
-    )
-    .unwrap();
-    let pins: toml::Table = mise_toml.parse().unwrap();
-    let tools: Vec<String> = ["node", "pnpm", "bun"]
+/// The tools a TypeScript layer's mise.toml pins, such as `node@24.22.1` and `bun@1.4.4`, so the
+/// creators run on what the project will, and the tests follow Renovate's bumps of them.
+fn pinned_tools(layer: &str) -> Vec<String> {
+    let path = Path::new(REPO)
+        .join("templates")
+        .join(layer)
+        .join("mise.toml");
+    let pins: toml::Table = fs::read_to_string(path).unwrap().parse().unwrap();
+    ["node", "pnpm", "bun"]
         .iter()
         .filter_map(|tool| Some(format!("{tool}@{}", pins["tools"].get(tool)?.as_str()?)))
-        .collect();
+        .collect()
+}
 
-    let tmp = TempDir::new().unwrap();
+/// Runs `command` in `dir` through mise with `layer`'s tools.
+fn with_tools(layer: &str, dir: &Path, command: &[&str]) -> Output {
+    let tools = pinned_tools(layer);
     let mut args: Vec<&str> = vec!["exec"];
     args.extend(tools.iter().map(String::as_str));
     args.push("--");
-    args.extend(create);
-    args.extend([
-        "site",
-        "--template",
-        "minimal",
-        "--install",
-        "--no-git",
-        "--skip-houston",
-        "--yes",
-    ]);
-    let new = Command::new("mise")
+    args.extend(command);
+    Command::new("mise")
         .args(&args)
-        .current_dir(tmp.path())
+        .current_dir(dir)
         .output()
-        .unwrap();
-    assert_ok_verbose(&new);
+        .unwrap()
+}
+
+/// The whole path from a project's own tool: each of `commands` runs in turn, the first in a fresh
+/// directory and the rest in the `site` it creates; then plinth with its setup, then the project's
+/// CI recipe, which installs from the lockfile, runs the gate and builds.
+fn a_new_project_passes_its_own_ci(layer: &str, commands: &[&[&str]]) {
+    let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("site");
+    for (i, command) in commands.iter().enumerate() {
+        let dir = if i == 0 { tmp.path() } else { root.as_path() };
+        assert_ok_verbose(&with_tools(layer, dir, command));
+    }
     let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
     assert_ok_verbose(&out);
     assert_ok_verbose(&just(&root, "ci"));
 }
 
+const CREATE_ASTRO: [&str; 6] = [
+    "--template",
+    "minimal",
+    "--install",
+    "--no-git",
+    "--skip-houston",
+    "--yes",
+];
+
 #[test]
 #[ignore]
-fn a_new_astro_project_with_npm_passes_its_own_ci() {
+fn a_new_astro_site_with_npm_passes_its_own_ci() {
     // npm needs the `--` to hand the flags to create-astro.
-    a_new_astro_project_passes_its_own_ci("astro", &["npm", "create", "astro@latest", "--"]);
+    let create = [
+        &["npm", "create", "astro@latest", "--", "site"][..],
+        &CREATE_ASTRO,
+    ]
+    .concat();
+    a_new_project_passes_its_own_ci("typescript", &[&create]);
 }
 
 #[test]
 #[ignore]
-fn a_new_astro_project_with_pnpm_passes_its_own_ci() {
-    a_new_astro_project_passes_its_own_ci("astro-pnpm", &["pnpm", "create", "astro@latest"]);
+fn a_new_astro_site_with_pnpm_passes_its_own_ci() {
+    let create = [
+        &["pnpm", "create", "astro@latest", "site"][..],
+        &CREATE_ASTRO,
+    ]
+    .concat();
+    a_new_project_passes_its_own_ci("typescript-pnpm", &[&create]);
 }
 
 #[test]
 #[ignore]
-fn a_new_astro_project_with_bun_passes_its_own_ci() {
-    a_new_astro_project_passes_its_own_ci("astro-bun", &["bun", "create", "astro@latest"]);
+fn a_new_astro_site_with_bun_passes_its_own_ci() {
+    let create = [
+        &["bun", "create", "astro@latest", "site"][..],
+        &CREATE_ASTRO,
+    ]
+    .concat();
+    a_new_project_passes_its_own_ci("typescript-bun", &[&create]);
+}
+
+#[test]
+#[ignore]
+fn a_new_vite_react_app_with_bun_passes_its_own_ci() {
+    a_new_project_passes_its_own_ci(
+        "typescript-bun",
+        &[
+            &[
+                "bun",
+                "create",
+                "vite@latest",
+                "site",
+                "--template",
+                "react-ts",
+                "--no-interactive",
+            ],
+            &["bun", "install"],
+        ],
+    );
+}
+
+#[test]
+#[ignore]
+fn a_new_vite_react_app_with_npm_passes_its_own_ci() {
+    a_new_project_passes_its_own_ci(
+        "typescript",
+        &[
+            &[
+                "npm",
+                "create",
+                "vite@latest",
+                "site",
+                "--",
+                "--template",
+                "react-ts",
+                "--no-interactive",
+            ],
+            &["npm", "install"],
+        ],
+    );
+}
+
+#[test]
+#[ignore]
+fn a_new_hono_server_with_bun_passes_its_own_ci() {
+    a_new_project_passes_its_own_ci(
+        "typescript-bun",
+        &[&[
+            "bun",
+            "create",
+            "hono@latest",
+            "site",
+            "--template",
+            "bun",
+            "--install",
+            "--pm",
+            "bun",
+        ]],
+    );
+}
+
+/// `bun init` asks for TypeScript 7, which the gate can't run on yet: plinth refuses and says what
+/// to change, and after that change the project passes.
+#[test]
+#[ignore]
+fn a_new_bun_package_passes_its_own_ci_once_it_asks_for_typescript_6() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("site");
+    fs::create_dir(&root).unwrap();
+    assert_ok_verbose(&with_tools("typescript-bun", &root, &["bun", "init", "-y"]));
+    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("Change it to \"~6.0\""));
+
+    let manifest = fs::read_to_string(root.join("package.json")).unwrap();
+    let manifest = manifest.replace("\"typescript\": \"^7\"", "\"typescript\": \"~6.0\"");
+    fs::write(root.join("package.json"), manifest).unwrap();
+    assert_ok_verbose(&with_tools("typescript-bun", &root, &["bun", "install"]));
+    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    assert_ok_verbose(&out);
+    assert_ok_verbose(&just(&root, "ci"));
 }

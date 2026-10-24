@@ -4,11 +4,14 @@ plinth is a Rust CLI that adds the tooling around a project and sets up its GitH
 style `~/Projects/tide` established: mise + just, `just ci` as the gate, squash-only PRs behind a
 `main` ruleset, a Conventional Commit title check, release-please, monthly grouped Renovate
 updates, PR and issue templates, and a pre-commit guard. The project itself comes from its own tool
-first (`cargo new`, `npm create astro`); `plinth init` then works out the language from its
-manifest. This repo is set up exactly the way plinth sets up others.
+first (`cargo new`, `npm create astro`, `bun create vite`); `plinth init` then works out the
+language from its manifest. This repo is set up exactly the way plinth sets up others.
 
-plinth sets up Rust projects and Astro sites (with npm, pnpm or bun) so far, and refuses anything
-else with a message saying so. Python (uv) is the next candidate.
+plinth sets up Rust projects and TypeScript ones (with npm, pnpm or bun) so far. A TypeScript
+package is one of a few kinds, read from its dependencies: an Astro site, a React app built with
+Vite, a Hono server, or a plain package. Each kind adds its own checks, lint rules and build to one
+TypeScript gate. Anything else is refused with a message saying so. Workspaces of several packages
+are next, then Python (uv).
 
 ## Principles
 
@@ -19,10 +22,10 @@ else with a message saying so. Python (uv) is the next candidate.
   and leaves every other existing file as it is. A JavaScript project's gate tools go in as dev
   dependencies through its own package manager. No framework or source templates.
 - **Practise what it preaches.** The shared files plinth generates match this repo's own copies; a
-  test enforces it. Change one, change both. The Astro layers, which this repo can't run, are held
-  to the same bar by end-to-end tests: create-astro with each package manager, plinth, then the
-  site's own `just ci`. Renovate scans `templates/` too, so its PRs bump an action or a mise tool
-  in both copies at once.
+  test enforces it. Change one, change both. The TypeScript layers, which this repo can't run, are
+  held to the same bar by end-to-end tests: each kind's own creator (create-astro with each package
+  manager, create-vite, create-hono, `bun init`), plinth, then the project's own `just ci`. Renovate
+  scans `templates/` too, so its PRs bump an action or a mise tool in both copies at once.
 - **Asks before touching GitHub.** `--dry-run` shows the `gh` calls; new repos are private unless
   `--public` is given.
 
@@ -30,13 +33,14 @@ else with a message saying so. Python (uv) is the next candidate.
 
 ```
 src/main.rs        CLI: `init` (clap), name checks, the dry-run report
-src/lang.rs        works out the language and package manager from the project; its setup commands
+src/lang.rs        works out the language, package manager and kind of package; the setup commands
 src/scaffold.rs    renders the layers, sorts them into add / append / leave alone, writes them
 src/github.rs      the first commit, `gh repo create`, repo settings, labels, the `main` ruleset
 src/step.rs        a command as data, so `--dry-run` prints exactly what a run would do
 templates/base/    files every project gets; `.j2` files are rendered with minijinja
 templates/rust/    the Rust layer; a file here replaces a base file at the same path
-templates/astro/   the Astro layer, with npm's mise.toml; astro-pnpm/ and astro-bun/ replace that
+templates/typescript/  the TypeScript layer, rendered per kind, with npm's mise.toml;
+                   typescript-pnpm/ and typescript-bun/ replace that
 tests/init.rs      runs the binary, including the checks that it reproduces this repo
 .claude/           settings.json: Claude Code may run `just` unprompted and can't read `.env` files
 .claude-plugin/    marketplace.json: this repo is a Claude Code marketplace with one plugin
@@ -71,8 +75,8 @@ The `publish.yml` hook in `release.yml` is shared with every generated project; 
 
 Rust, just and the audit tools are pinned in `mise.toml`; run `mise install`, then `just setup` once.
 `just check` is the gate: `cargo fmt --check`, clippy with warnings as errors, `cargo test` with
-the slow end-to-end tests (they create projects with cargo and create-astro, so they need the
-network), then `just audit` (typos, actionlint, zizmor, shellcheck on the hook, gitleaks over every commit). A zizmor
+the slow end-to-end tests (they create projects with cargo, create-astro, create-vite, create-hono
+and `bun init`, so they need the network), then `just audit` (typos, actionlint, zizmor, shellcheck on the hook, gitleaks over every commit). A zizmor
 finding is fixed, or ignored inline with `# zizmor: ignore[<audit>]` and the reason. Murad is new to
 Rust (background in C# and C++), so explain Rust-specific choices briefly in PRs where they aren't
 obvious.

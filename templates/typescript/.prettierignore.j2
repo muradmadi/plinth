@@ -5,6 +5,10 @@ package.json
 package-lock.json
 pnpm-lock.yaml
 bun.lock
+{%- for m in members if m.kind == "api" %}
+# create-hono writes it without a final newline.
+{{ m.prefix }}tsconfig.json
+{%- endfor %}
 
 # Markdown is prose, left as its authors wrote it: Prettier re-aligns tables and lists, and
 # create-astro's own README fails it under pnpm and bun.

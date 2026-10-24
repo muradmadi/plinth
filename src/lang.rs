@@ -10,7 +10,7 @@ use serde_json::Value;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Lang {
     Rust,
-    Astro,
+    TypeScript,
 }
 
 /// A JavaScript project's package manager, which installs its dependencies and runs its tools.
@@ -21,6 +21,38 @@ pub enum Pm {
     Bun,
 }
 
+/// What a TypeScript package is, read from its dependencies. Each kind adds its own checks, lint
+/// rules and build to the gate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    /// An Astro site.
+    Astro,
+    /// A React app built with Vite.
+    Web,
+    /// A Hono server.
+    Api,
+    /// Anything else: a library, a CLI, a script.
+    Lib,
+}
+
+/// How a package's TypeScript is set up, which decides how `just typecheck` runs tsc on it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tsconfig {
+    None,
+    /// One tsconfig.json covering the package.
+    Plain,
+    /// A tsconfig.json that only references others, as create-vite writes; `tsc -b` follows them.
+    Solution,
+}
+
+/// One package of a TypeScript project, at `path` from the root: `.` for a single package.
+#[derive(Clone, Debug)]
+pub struct Member {
+    pub path: String,
+    pub kind: Kind,
+    pub tsconfig: Tsconfig,
+}
+
 /// What plinth needs to know about the project it is setting up.
 #[derive(Debug)]
 pub struct Project {
@@ -29,23 +61,51 @@ pub struct Project {
     pub package: String,
     /// The current version, where release-please starts counting from.
     pub version: String,
-    /// The package manager, for a JavaScript project.
+    /// The package manager, for a TypeScript project.
     pub pm: Option<Pm>,
+    /// The packages of a TypeScript project.
+    pub members: Vec<Member>,
     /// Every dependency the manifest already names, so setup adds only the ones it lacks.
     deps: BTreeSet<String>,
 }
 
-/// The dev dependencies an Astro project's gate runs, as (name, what to install). TypeScript is
-/// held at 6: `@astrojs/check` and typescript-eslint don't support 7 yet.
-const ASTRO_DEV_DEPS: [(&str, &str); 8] = [
+/// The dev dependencies every TypeScript gate runs, as (name, what to install). TypeScript is held
+/// at 6: typescript-eslint and `@astrojs/check` don't support 7 yet.
+const TS_DEV_DEPS: [(&str, &str); 6] = [
     ("prettier", "prettier"),
-    ("prettier-plugin-astro", "prettier-plugin-astro"),
     ("eslint", "eslint"),
     ("@eslint/js", "@eslint/js"),
     ("typescript-eslint", "typescript-eslint"),
+    ("eslint-config-prettier", "eslint-config-prettier"),
+    ("typescript", "typescript@~6.0"),
+];
+
+/// What a React app adds to them.
+const WEB_DEV_DEPS: [(&str, &str); 2] = [
+    ("eslint-plugin-react-hooks", "eslint-plugin-react-hooks"),
+    ("globals", "globals"),
+];
+
+/// What an Astro site adds to them.
+const ASTRO_DEV_DEPS: [(&str, &str); 3] = [
+    ("prettier-plugin-astro", "prettier-plugin-astro"),
     ("eslint-plugin-astro", "eslint-plugin-astro"),
     ("@astrojs/check", "@astrojs/check"),
-    ("typescript", "typescript@~6.0"),
+];
+
+/// Frameworks plinth recognises but can't set up yet, as (dependency, name).
+const UNSUPPORTED: [(&str, &str); 11] = [
+    ("next", "Next.js"),
+    ("nuxt", "Nuxt"),
+    ("vue", "Vue"),
+    ("@sveltejs/kit", "SvelteKit"),
+    ("svelte", "Svelte"),
+    ("expo", "Expo"),
+    ("react-native", "React Native"),
+    ("@angular/core", "Angular"),
+    ("solid-js", "Solid"),
+    ("@remix-run/react", "Remix"),
+    ("@builder.io/qwik", "Qwik"),
 ];
 
 /// Each package manager's lockfile. bun wrote the binary `bun.lockb` before 1.2.
@@ -60,7 +120,7 @@ impl Lang {
     pub fn name(self) -> &'static str {
         match self {
             Lang::Rust => "rust",
-            Lang::Astro => "astro",
+            Lang::TypeScript => "typescript",
         }
     }
 }
@@ -102,7 +162,42 @@ impl Pm {
     }
 }
 
+impl Kind {
+    pub fn name(self) -> &'static str {
+        match self {
+            Kind::Astro => "astro",
+            Kind::Web => "web",
+            Kind::Api => "api",
+            Kind::Lib => "lib",
+        }
+    }
+}
+
+impl Tsconfig {
+    pub fn name(self) -> &'static str {
+        match self {
+            Tsconfig::None => "none",
+            Tsconfig::Plain => "plain",
+            Tsconfig::Solution => "solution",
+        }
+    }
+}
+
+impl Member {
+    /// What goes before a path inside the member in a glob: nothing for the root package.
+    pub fn prefix(&self) -> String {
+        match self.path.as_str() {
+            "." => String::new(),
+            path => format!("{path}/"),
+        }
+    }
+}
+
 impl Project {
+    pub fn has(&self, kind: Kind) -> bool {
+        self.members.iter().any(|m| m.kind == kind)
+    }
+
     /// Commands that finish the project once its tools are installed, leaving out what it already
     /// has. Each runs through `mise exec`, so it gets the versions pinned in the project's
     /// mise.toml.
@@ -113,9 +208,9 @@ impl Project {
                 vec![vec!["cargo".into(), "generate-lockfile".into()]]
             }
             Lang::Rust => Vec::new(),
-            Lang::Astro => {
-                let missing: Vec<&str> = ASTRO_DEV_DEPS
-                    .iter()
+            Lang::TypeScript => {
+                let missing: Vec<&str> = self
+                    .dev_deps()
                     .filter(|(name, _)| !self.deps.contains(*name))
                     .map(|&(_, spec)| spec)
                     .collect();
@@ -132,6 +227,21 @@ impl Project {
             }
         }
     }
+
+    /// The dev dependencies the gate needs for this project's kinds of package.
+    fn dev_deps(&self) -> impl Iterator<Item = &'static (&'static str, &'static str)> {
+        let web: &[_] = if self.has(Kind::Web) {
+            &WEB_DEV_DEPS
+        } else {
+            &[]
+        };
+        let astro: &[_] = if self.has(Kind::Astro) {
+            &ASTRO_DEV_DEPS
+        } else {
+            &[]
+        };
+        TS_DEV_DEPS.iter().chain(web).chain(astro)
+    }
 }
 
 /// Works out the language from the manifest in `root`.
@@ -140,14 +250,14 @@ pub fn detect(root: &Path) -> Result<Project> {
     let node = root.join("package.json");
     match (cargo.exists(), node.exists()) {
         (true, false) => rust(&cargo),
-        (false, true) => astro(root, &node),
+        (false, true) => typescript(root, &node),
         (true, true) => bail!(
             "{} has both a Cargo.toml and a package.json; plinth sets up one language per project",
             root.display()
         ),
         (false, false) => bail!(
             "{} has no Cargo.toml or package.json; create the project with its own tool first, \
-             e.g. `mise exec rust -- cargo new` or `npm create astro@latest`",
+             e.g. `mise exec rust -- cargo new`, `npm create astro@latest` or `bun create vite`",
             root.display()
         ),
     }
@@ -176,38 +286,106 @@ fn rust(manifest: &Path) -> Result<Project> {
         package: field("name")?,
         version: field("version")?,
         pm: None,
+        members: Vec::new(),
         deps: BTreeSet::new(),
     })
 }
 
-fn astro(root: &Path, manifest: &Path) -> Result<Project> {
+fn typescript(root: &Path, manifest: &Path) -> Result<Project> {
     let json: Value = serde_json::from_str(&fs::read_to_string(manifest)?)
         .with_context(|| format!("couldn't read {}", manifest.display()))?;
-    let deps: BTreeSet<String> = ["dependencies", "devDependencies"]
-        .iter()
+    if json.get("workspaces").is_some() || root.join("pnpm-workspace.yaml").exists() {
+        bail!(
+            "{} is a workspace of several packages; plinth sets up single packages so far",
+            root.display()
+        );
+    }
+    let deps = dependencies(&json, &["dependencies", "devDependencies"]);
+    refuse_typescript_7(&json, manifest)?;
+    let member = Member {
+        path: ".".into(),
+        kind: classify(&deps, manifest)?,
+        tsconfig: tsconfig(root),
+    };
+    let field = |key: &str| json.get(key).and_then(Value::as_str).map(str::to_owned);
+    Ok(Project {
+        lang: Lang::TypeScript,
+        // create-hono writes neither; the directory's name and an unreleased version stand in.
+        package: field("name")
+            .or_else(|| Some(root.file_name()?.to_str()?.to_owned()))
+            .context("couldn't name the package after its directory")?,
+        version: field("version").unwrap_or_else(|| "0.0.0".into()),
+        pm: Some(package_manager(root, &json)?),
+        members: vec![member],
+        deps,
+    })
+}
+
+/// The names of every dependency listed under `keys` in a package.json.
+fn dependencies(json: &Value, keys: &[&str]) -> BTreeSet<String> {
+    keys.iter()
         .filter_map(|key| json.get(key)?.as_object())
         .flat_map(|deps| deps.keys().cloned())
-        .collect();
-    if !deps.contains("astro") {
+        .collect()
+}
+
+fn classify(deps: &BTreeSet<String>, manifest: &Path) -> Result<Kind> {
+    // An Astro site may carry React or Svelte islands; it is still an Astro site.
+    if deps.contains("astro") {
+        return Ok(Kind::Astro);
+    }
+    if let Some((_, name)) = UNSUPPORTED.iter().find(|(dep, _)| deps.contains(*dep)) {
         bail!(
-            "{} doesn't depend on astro; of JavaScript projects, plinth sets up only Astro ones so \
-             far",
+            "{} uses {name}, which plinth can't set up yet; it sets up Astro sites, React apps \
+             built with Vite, Hono servers and plain TypeScript packages",
             manifest.display()
         );
     }
-    let field = |key: &str| {
-        json.get(key)
-            .and_then(Value::as_str)
-            .map(str::to_owned)
-            .with_context(|| format!("{} has no \"{key}\"", manifest.display()))
-    };
-    Ok(Project {
-        lang: Lang::Astro,
-        package: field("name")?,
-        version: field("version")?,
-        pm: Some(package_manager(root, &json)?),
-        deps,
-    })
+    let has = |dep: &str| deps.contains(dep);
+    match (has("react"), has("vite"), has("hono")) {
+        (true, true, _) => Ok(Kind::Web),
+        (true, false, _) => bail!(
+            "{} uses React without Vite; plinth sets up React apps built with Vite so far (`npm \
+             create vite`)",
+            manifest.display()
+        ),
+        (false, _, true) => Ok(Kind::Api),
+        _ => Ok(Kind::Lib),
+    }
+}
+
+/// The gate's type-aware lint and `astro check` run on TypeScript 6; with a project asking for 7,
+/// the package manager installs both and typescript-eslint breaks.
+fn refuse_typescript_7(json: &Value, manifest: &Path) -> Result<()> {
+    for key in ["dependencies", "devDependencies", "peerDependencies"] {
+        let Some(range) = json.get(key).and_then(|d| d.get("typescript")?.as_str()) else {
+            continue;
+        };
+        let bare = range.trim_start_matches(['^', '~', '>', '=', ' ']);
+        if bare.starts_with('7') || range == "latest" {
+            bail!(
+                "{}'s {key} ask for TypeScript {range}{}; the gate's lint and type checks need \
+                 TypeScript 6 until typescript-eslint supports 7. Change it to \"~6.0\", then run \
+                 plinth again",
+                manifest.display(),
+                if key == "peerDependencies" {
+                    ", as `bun init` writes it"
+                } else {
+                    ""
+                }
+            );
+        }
+    }
+    Ok(())
+}
+
+fn tsconfig(dir: &Path) -> Tsconfig {
+    match fs::read_to_string(dir.join("tsconfig.json")) {
+        // A substring check, as tsconfig.json may hold comments a JSON parser would reject.
+        Ok(text) if text.contains("\"references\"") => Tsconfig::Solution,
+        Ok(_) => Tsconfig::Plain,
+        Err(_) => Tsconfig::None,
+    }
 }
 
 /// The package manager named by package.json's `packageManager` field, or else by the lockfile.
@@ -270,6 +448,11 @@ mod tests {
         tmp
     }
 
+    /// A package.json with `deps` as its dependencies.
+    fn manifest(deps: &str) -> String {
+        format!(r#"{{"name": "site", "version": "0.0.1", "dependencies": {{{deps}}}}}"#)
+    }
+
     const ASTRO: &str =
         r#"{"name": "site", "version": "0.0.1", "dependencies": {"astro": "^7.4.2"}}"#;
 
@@ -285,6 +468,14 @@ mod tests {
     fn refuses_a_workspace_root() {
         let err = project("[workspace]\nmembers = [\"a\"]\n").unwrap_err();
         assert!(err.to_string().contains("workspaces"));
+        let npm = r#"{"name": "mono", "workspaces": ["apps/*"]}"#;
+        let tmp = dir(&[("package.json", npm), ("bun.lock", "")]);
+        assert!(
+            detect(tmp.path())
+                .unwrap_err()
+                .to_string()
+                .contains("single packages")
+        );
     }
 
     #[test]
@@ -294,7 +485,7 @@ mod tests {
     }
 
     #[test]
-    fn finds_an_astro_project_and_its_package_manager() {
+    fn finds_a_typescript_project_and_its_package_manager() {
         for (lockfile, pm) in [
             ("package-lock.json", Pm::Npm),
             ("pnpm-lock.yaml", Pm::Pnpm),
@@ -302,9 +493,52 @@ mod tests {
         ] {
             let tmp = dir(&[("package.json", ASTRO), (lockfile, "")]);
             let p = detect(tmp.path()).unwrap();
-            assert_eq!((p.lang, p.pm), (Lang::Astro, Some(pm)));
+            assert_eq!((p.lang, p.pm), (Lang::TypeScript, Some(pm)));
             assert_eq!((p.package.as_str(), p.version.as_str()), ("site", "0.0.1"));
         }
+    }
+
+    #[test]
+    fn tells_the_kind_of_package_from_its_dependencies() {
+        let kind = |deps: &str| {
+            let tmp = dir(&[("package.json", &manifest(deps)), ("bun.lock", "")]);
+            detect(tmp.path()).unwrap().members[0].kind
+        };
+        assert_eq!(kind(r#""astro": "^7", "react": "^19""#), Kind::Astro);
+        assert_eq!(kind(r#""react": "^19", "vite": "^8""#), Kind::Web);
+        assert_eq!(kind(r#""hono": "^4""#), Kind::Api);
+        assert_eq!(kind(r#""zod": "^4""#), Kind::Lib);
+    }
+
+    #[test]
+    fn tells_a_solution_tsconfig_from_a_plain_one() {
+        let solution = r#"{ "files": [], "references": [{ "path": "./tsconfig.app.json" }] }"#;
+        for (text, expected) in [
+            (Some(solution), Tsconfig::Solution),
+            (
+                Some("{ /* strict */ \"compilerOptions\": {} }"),
+                Tsconfig::Plain,
+            ),
+            (None, Tsconfig::None),
+        ] {
+            let tmp = dir(&[("package.json", ASTRO), ("bun.lock", "")]);
+            if let Some(text) = text {
+                fs::write(tmp.path().join("tsconfig.json"), text).unwrap();
+            }
+            assert_eq!(detect(tmp.path()).unwrap().members[0].tsconfig, expected);
+        }
+    }
+
+    #[test]
+    fn names_an_unnamed_package_after_its_directory() {
+        let hono = r#"{"dependencies": {"hono": "^4"}}"#;
+        let tmp = dir(&[("package.json", hono), ("bun.lock", "")]);
+        let p = detect(tmp.path()).unwrap();
+        let dir_name = tmp.path().file_name().unwrap().to_str().unwrap();
+        assert_eq!(
+            (p.package.as_str(), p.version.as_str()),
+            (dir_name, "0.0.0")
+        );
     }
 
     #[test]
@@ -318,8 +552,13 @@ mod tests {
     #[test]
     fn refuses_what_it_cant_set_up() {
         let refusal = |files: &[(&str, &str)]| detect(dir(files).path()).unwrap_err().to_string();
-        let react = r#"{"name": "app", "version": "1.0.0", "dependencies": {"react": "^19"}}"#;
-        assert!(refusal(&[("package.json", react)]).contains("only Astro"));
+        let with = |deps: &str| refusal(&[("package.json", &manifest(deps)), ("bun.lock", "")]);
+        assert!(with(r#""next": "^16", "react": "^19""#).contains("uses Next.js"));
+        assert!(with(r#""vue": "^3", "vite": "^8""#).contains("uses Vue"));
+        assert!(with(r#""react": "^19""#).contains("without Vite"));
+        let ts7 = r#"{"name": "lib", "peerDependencies": {"typescript": "^7"}}"#;
+        let err = refusal(&[("package.json", ts7), ("bun.lock", "")]);
+        assert!(err.contains("TypeScript ^7") && err.contains("bun init"));
         assert!(refusal(&[("package.json", ASTRO), ("yarn.lock", "")]).contains("yarn"));
         assert!(refusal(&[("package.json", ASTRO)]).contains("no lockfile"));
         let two = [
@@ -339,9 +578,12 @@ mod tests {
         assert_eq!(fresh.len(), 1);
         assert_eq!(fresh[0][..3], ["pnpm", "add", "--save-dev"]);
         assert!(fresh[0].contains(&"typescript@~6.0".to_owned()));
+        assert!(fresh[0].contains(&"@astrojs/check".to_owned()));
+        assert!(!fresh[0].contains(&"eslint-plugin-react-hooks".to_owned()));
 
-        let all: Vec<String> = ASTRO_DEV_DEPS
+        let all: Vec<String> = TS_DEV_DEPS
             .iter()
+            .chain(&ASTRO_DEV_DEPS)
             .map(|(name, _)| format!("\"{name}\": \"*\""))
             .collect();
         let manifest = ASTRO.replace(
@@ -353,5 +595,16 @@ mod tests {
         );
         fs::write(tmp.path().join("package.json"), manifest).unwrap();
         assert!(detect(tmp.path()).unwrap().setup(tmp.path()).is_empty());
+    }
+
+    #[test]
+    fn a_react_app_gets_the_hooks_rules() {
+        let tmp = dir(&[
+            ("package.json", &manifest(r#""react": "^19", "vite": "^8""#)),
+            ("package-lock.json", ""),
+        ]);
+        let setup = detect(tmp.path()).unwrap().setup(tmp.path());
+        assert!(setup[0].contains(&"eslint-plugin-react-hooks".to_owned()));
+        assert!(!setup[0].contains(&"@astrojs/check".to_owned()));
     }
 }
