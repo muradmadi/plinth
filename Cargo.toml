@@ -1,6 +1,6 @@
 [package]
 name = "plinth"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 description = "Set up the tooling around a project and its GitHub repo, the same way every time"
 license = "MIT"
