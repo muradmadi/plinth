@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/muradmadi/plinth/compare/v0.5.0...v0.6.0) (2026-10-24)
+
+
+### Features
+
+* keep projects current with Renovate instead of Dependabot ([#19](https://github.com/muradmadi/plinth/issues/19)) ([bcaad7e](https://github.com/muradmadi/plinth/commit/bcaad7eb6953086b91f949165e2f7f3ec746c505))
+
 ## [0.5.0](https://github.com/muradmadi/plinth/compare/v0.4.0...v0.5.0) (2026-10-24)
 
 
