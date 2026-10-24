@@ -49,7 +49,8 @@ plugin/            the plinth plugin: plugin.json and skills/plinth/SKILL.md, wh
   `feat` releases a minor version, `fix` and `perf` a patch, and `!` after the type a major;
   `refactor`, `docs`, `test`, `build`, `ci`, `chore` and `revert` don't release.
 - release-please owns `CHANGELOG.md` and the version, and Renovate owns dependency and tool
-  updates; don't edit those by hand. `release.yml` starts CI on release-please's PRs itself.
+  updates; don't edit those by hand. release-please's PRs need "Approve workflows to run" clicked
+  once before their `check` runs (see `.github/workflows/release.yml`).
 - Labels: `feature`, `bug`, `docs`, `ci`, `dependencies`.
 - Wait for Murad before merging.
 
