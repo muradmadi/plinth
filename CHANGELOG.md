@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/muradmadi/plinth/compare/v0.10.0...v0.11.0) (2026-10-24)
+
+
+### Features
+
+* set up TypeScript 7 projects, linted with oxlint ([#38](https://github.com/muradmadi/plinth/issues/38)) ([313b7b4](https://github.com/muradmadi/plinth/commit/313b7b4e533488a09fcc66dda8699c203ca7ca68))
+
 ## [0.10.0](https://github.com/muradmadi/plinth/compare/v0.9.0...v0.10.0) (2026-10-24)
 
 
