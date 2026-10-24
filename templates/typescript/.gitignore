@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .astro/
+*.tsbuildinfo
 
 # Secrets and data never go in git; .githooks/pre-commit refuses them too.
 .env

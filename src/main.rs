@@ -105,13 +105,14 @@ fn init(args: InitArgs) -> Result<()> {
             package: project.package.clone(),
             version: project.version.clone(),
             pm: project.pm,
+            members: project.members.clone(),
         },
     )?;
     let plan = scaffold::plan(&root, files)?;
     let setup = if args.no_setup {
         Vec::new()
     } else {
-        scaffold::setup_steps(&root, &project)
+        scaffold::setup_steps(&root, &project, &plan)
     };
     let github_steps = repo.as_ref().map(github::steps).unwrap_or_default();
     let claude_note = claude_md_note(&root);
