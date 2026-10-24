@@ -5,8 +5,8 @@ every time: mise and just with a `just check` gate that also audits the workflow
 zizmor) and scans for secrets (gitleaks, in the gate and the commit hook), CI, squash-only PRs
 behind a `main` ruleset, a Conventional Commit title check, release-please and monthly Renovate
 updates, and an AGENTS.md with those rules for coding agents. It never touches the project's code:
-create the project with its own tool first, then run `plinth init` in it. A Claude Code plugin in
-this repo drives the same CLI.
+create the project with its own tool first, then run `plinth init` in it. It sets up Rust projects
+and Astro sites so far. A Claude Code plugin in this repo drives the same CLI.
 
 ## Install
 
@@ -28,7 +28,7 @@ download was built by this repo's `publish.yml`.
 ```
 
 The `plinth` skill turns "start a new Rust CLI called wordcount" into `cargo new wordcount` and a
-`plinth init` call: it shows the `--dry-run` first and waits for a yes before creating the GitHub
+`plinth init` call, or "start an Astro site" into create-astro and the same call: it shows the `--dry-run` first and waits for a yes before creating the GitHub
 repo. It needs the CLI installed as above.
 
 ### Renovate
@@ -55,10 +55,30 @@ plinth init --dry-run              # lists the files and commands, touches nothi
 plinth init --description "…"      # adds the tooling, sets it up, creates <you>/demo
 ```
 
-plinth works out the language from the project's manifest; Rust (`Cargo.toml`) is the only one so
-far. It adds the files the project lacks, appends missing lines to `.gitignore` and
-`.gitattributes`, and lists the files it left alone because the project has its own. Running it
-again adds nothing.
+An Astro site works the same way, with npm, pnpm or bun:
+
+```sh
+mise exec node@24 -- npm create astro@latest site -- --template minimal --install --no-git --yes
+cd site
+plinth init --dry-run              # also lists the dev dependencies it will install
+```
+
+plinth works out the language from the project's manifest: `Cargo.toml` for Rust, a `package.json`
+that depends on `astro` for Astro. It refuses any other project and says why. It adds the files the
+project lacks, appends missing lines to `.gitignore` and `.gitattributes`, adds its house rules to
+an AGENTS.md the project already has, and lists the files it left alone because the project has its
+own. Running it again adds nothing.
+
+What `just check` runs:
+
+- **Rust:** rustfmt, clippy with warnings as errors, and the tests.
+- **Astro:** Prettier, ESLint and `astro check`. `just ci` also builds the site.
+
+Both also run the audit: typos, actionlint, zizmor, shellcheck and gitleaks.
+
+For Astro, plinth installs Prettier, ESLint, `@astrojs/check` and TypeScript as dev dependencies
+with the package manager the lockfile names. It also pins that package manager and Node in
+`mise.toml`.
 
 The repo is named after the directory unless `--name` gives another, is private unless `--public`
 is given, and goes under the account gh is logged in as unless `--owner` names another. It gets

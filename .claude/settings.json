@@ -1,7 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
-    "allow": ["Bash(just *)", "Bash(mise install)", "Bash(mise exec -- just *)"],
+    "allow": [
+      "Bash(just *)",
+      "Bash(mise install)",
+      "Bash(mise exec -- just *)"
+    ],
     "deny": ["Read(.env)", "Read(.env.*)", "Read(!.env.example)"]
   }
 }

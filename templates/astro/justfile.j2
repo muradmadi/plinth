@@ -1,0 +1,52 @@
+# {{ name }} task runner. `just` on its own lists everything.
+#
+# The toolchain (node, just and the audit tools) is pinned in mise.toml — run `mise install` once.
+# The formatters, linters and Astro's checker are dev dependencies, run through {{ pm }}.
+
+# List available recipes
+default:
+    @just --list --unsorted
+
+# One-time setup: commit guard
+setup:
+    git config core.hooksPath .githooks
+
+# The gate: formatting, lint, types, then the repo's own hygiene
+check: format-check lint typecheck audit
+
+# What CI runs: a clean install from the lockfile, the gate, then a build
+ci: install check build
+
+# Install exactly what the lockfile lists
+install:
+    {{ install_frozen }}
+
+# Fail on any file Prettier would change
+format-check:
+    {{ exec }} prettier --check .
+
+# Rewrite files the way Prettier and ESLint's fixers want them
+format:
+    {{ exec }} prettier --write .
+    {{ exec }} eslint --fix .
+
+# Lint the JavaScript, TypeScript and Astro files
+lint:
+    {{ exec }} eslint .
+
+# Type-check the project, .astro files included
+typecheck:
+    {{ exec }} astro check
+
+# Build the site into dist/
+build:
+    {{ exec }} astro build
+
+# Spelling, workflow mistakes and security problems, the commit hook, and secrets in any commit.
+# zizmor also runs its online audits when GH_TOKEN is set, as it is in CI.
+audit:
+    typos --hidden --exclude .git
+    actionlint
+    zizmor --no-progress .github/workflows
+    shellcheck .githooks/pre-commit
+    gitleaks git --redact --no-banner

@@ -1,6 +1,6 @@
 ---
 name: plinth
-description: Set up a project's tooling and GitHub repo with the plinth CLI, after creating the project with its own tool (cargo new). Use when the user wants to start, scaffold, create, bootstrap or set up a new project, app, tool or repo, wants the house tooling (mise, just, CI, release-please, the main ruleset) added to a project that has none yet, or asks for plinth by name.
+description: Set up a project's tooling and GitHub repo with the plinth CLI, after creating the project with its own tool (cargo new for Rust, create-astro for an Astro site). Use when the user wants to start, scaffold, create, bootstrap or set up a new project, app, tool or repo, wants the house tooling (mise, just, CI, release-please, the main ruleset) added to a project that has none yet, or asks for plinth by name.
 ---
 
 # plinth
@@ -19,14 +19,16 @@ Run `plinth --version`. If it isn't found, stop and tell the user it installs wi
 
 ## 2. Collect the choices
 
-plinth sets up Rust projects so far: it finds the language from `Cargo.toml`. If the user wants
-another language, say plinth can't set it up yet and stop. Don't substitute Rust.
+plinth sets up Rust projects and Astro sites so far: it finds the language from `Cargo.toml`, or
+from a `package.json` that depends on `astro`. If the user wants anything else, a React app or a
+Python tool, say plinth can't set it up yet and stop. Don't substitute a language it supports.
 
 Settle, asking only for what the user hasn't already said:
 
 - **Name**: lowercase letters, digits and dashes, starting with a letter. It becomes the
   directory and the repo name. Suggest one if they described the project but didn't name it.
-- **Kind**: a binary (`cargo new`) or a library (`cargo new --lib`).
+- **Kind**: for Rust, a binary (`cargo new`) or a library (`cargo new --lib`). For Astro, the
+  package manager: npm unless they prefer pnpm or bun.
 - **Description**: one line on what it does. Draft it from what they said and let them change it.
 - **Where**: `~/Projects/<name>` unless they say otherwise.
 - **GitHub**: private unless they ask for public. `--no-github` if they don't want a repo.
@@ -35,8 +37,17 @@ For a project that already exists, skip the kind and use its directory.
 
 ## 3. Create the project
 
-Run `mise exec rust -- cargo new <dir>` (with `--lib` for a library). Going through mise works on a
-machine with no Rust set up outside a project; plinth pins the project's own Rust version after.
+Going through mise works on a machine with no Rust or Node set up outside a project; plinth pins
+the project's own versions after.
+
+- **Rust:** `mise exec rust -- cargo new <dir>`, with `--lib` for a library.
+- **Astro:** the minimal starter, installed, without a git repo of its own (plinth makes one):
+  - npm: `mise exec node@24 -- npm create astro@latest <dir> -- --template minimal --install --no-git --yes`
+  - pnpm: `mise exec node@24 pnpm -- pnpm create astro@latest <dir> --template minimal --install --no-git --yes`
+  - bun: `mise exec node@24 bun -- bun create astro@latest <dir> --template minimal --install --no-git --yes`
+
+  Use another template only if the user asks for one.
+
 The directory must not already exist; if it does, ask whether to set up that project instead.
 Never delete a directory to make room.
 
@@ -48,8 +59,8 @@ Run plinth with `--dry-run` first, for example:
 plinth init --dir ~/Projects/demo --description "What it does" --dry-run
 ```
 
-Show the user the output: the files it adds, the files it leaves alone, the setup commands, and
-the `gh` calls. Creating a GitHub repo is visible outside this machine, so get an explicit yes to
+Show the user the output: the files it adds, the files it leaves alone, the setup commands (for
+Astro, the dev dependencies it installs), and the `gh` calls. Creating a GitHub repo is visible outside this machine, so get an explicit yes to
 this exact plan, including private or public, before going on.
 
 ## 5. Run it

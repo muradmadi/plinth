@@ -44,6 +44,30 @@ fn cargo_project(tmp: &TempDir, name: &str) -> PathBuf {
     root
 }
 
+const PACKAGE_JSON: &str = r#"{
+  "name": "site",
+  "type": "module",
+  "version": "0.0.1",
+  "dependencies": {
+    "astro": "^7.4.2"
+  }
+}
+"#;
+const ASTRO_AGENTS_MD: &str = "## Development\n\nUse `astro dev --background`.\n";
+
+/// A directory named `name` holding what create-astro writes that plinth looks at, with the
+/// lockfile of the package manager that installed it.
+fn astro_project(tmp: &TempDir, name: &str, lockfile: &str) -> PathBuf {
+    let root = tmp.path().join(name);
+    fs::create_dir_all(root.join("src/pages")).unwrap();
+    fs::write(root.join("package.json"), PACKAGE_JSON).unwrap();
+    fs::write(root.join(lockfile), "").unwrap();
+    fs::write(root.join("AGENTS.md"), ASTRO_AGENTS_MD).unwrap();
+    fs::write(root.join("src/pages/index.astro"), "<h1>Astro</h1>\n").unwrap();
+    fs::write(root.join(".gitignore"), "dist/\n.astro/\nnode_modules/\n").unwrap();
+    root
+}
+
 fn init_without_setup(root: &Path, extra: &[&str]) -> Output {
     let mut args = vec![
         "init",
@@ -162,8 +186,97 @@ fn refuses_a_directory_without_a_manifest() {
     fs::write(tmp.path().join("keep.txt"), "mine").unwrap();
     let out = init_without_setup(tmp.path(), &["--name", "demo"]);
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("no Cargo.toml"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("no Cargo.toml or package.json"));
     assert_eq!(tree(tmp.path()), [PathBuf::from("keep.txt")]);
+}
+
+#[test]
+fn adds_the_tooling_to_an_astro_project_and_leaves_its_code_alone() {
+    let tmp = TempDir::new().unwrap();
+    let root = astro_project(&tmp, "site", "package-lock.json");
+    assert_ok(&init_without_setup(&root, &[]));
+
+    let expected = [
+        ".claude/settings.json",
+        ".editorconfig",
+        ".gitattributes",
+        ".githooks/pre-commit",
+        ".github/ISSUE_TEMPLATE/bug.yml",
+        ".github/ISSUE_TEMPLATE/config.yml",
+        ".github/ISSUE_TEMPLATE/feature.yml",
+        ".github/pull_request_template.md",
+        ".github/renovate.json5",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/title.yml",
+        ".gitignore",
+        ".prettierignore",
+        ".prettierrc.json",
+        ".release-please-manifest.json",
+        "AGENTS.md",
+        "README.md",
+        "eslint.config.js",
+        "justfile",
+        "mise.toml",
+        "package-lock.json",
+        "package.json",
+        "release-please-config.json",
+        "src/pages/index.astro",
+    ];
+    assert_eq!(tree(&root), expected.map(PathBuf::from));
+    assert_eq!(
+        fs::read_to_string(root.join("package.json")).unwrap(),
+        PACKAGE_JSON
+    );
+    let agents_md = fs::read_to_string(root.join("AGENTS.md")).unwrap();
+    assert!(agents_md.starts_with(ASTRO_AGENTS_MD));
+    assert!(agents_md.contains("\n## Git and GitHub\n"));
+    let ignore = fs::read_to_string(root.join(".gitignore")).unwrap();
+    assert!(ignore.ends_with("# Added by plinth\n.env\n.env.*\n!.env.example\n*.db\n"));
+    assert!(
+        fs::read_to_string(root.join("release-please-config.json"))
+            .unwrap()
+            .contains("\"release-type\": \"node\"")
+    );
+    assert!(
+        fs::read_to_string(root.join("justfile"))
+            .unwrap()
+            .contains("npx --no -- astro check")
+    );
+
+    let again = init_without_setup(&root, &["--dry-run"]);
+    assert!(String::from_utf8_lossy(&again.stdout).starts_with("Nothing to add to "));
+}
+
+#[test]
+fn installs_the_astro_gate_with_the_projects_package_manager() {
+    let tmp = TempDir::new().unwrap();
+    let root = astro_project(&tmp, "site", "pnpm-lock.yaml");
+    let out = plinth(&[
+        "init",
+        "--dry-run",
+        "--no-github",
+        "--dir",
+        root.to_str().unwrap(),
+    ]);
+    assert_ok(&out);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("Would append to:\n  .gitignore\n  AGENTS.md\n"));
+    assert!(stdout.contains("  mise exec -- pnpm add --save-dev prettier "));
+    assert!(stdout.contains(" typescript@~6.0\n"));
+}
+
+#[test]
+fn refuses_a_javascript_project_that_isnt_astro() {
+    let tmp = TempDir::new().unwrap();
+    let root = astro_project(&tmp, "app", "package-lock.json");
+    let react = PACKAGE_JSON.replace("astro", "react");
+    fs::write(root.join("package.json"), &react).unwrap();
+    let before = tree(&root);
+    let out = init_without_setup(&root, &[]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("only Astro"));
+    assert_eq!(tree(&root), before);
 }
 
 #[test]
@@ -355,15 +468,86 @@ fn a_new_cargo_project_passes_its_own_gate() {
     assert!(root.join("Cargo.lock").exists());
     assert!(root.join(".git").exists());
 
-    let check = Command::new("mise")
-        .args(["exec", "--", "just", "check"])
-        .current_dir(&root)
+    assert_ok_verbose(&just(&root, "check"));
+}
+
+fn just(root: &Path, recipe: &str) -> Output {
+    Command::new("mise")
+        .args(["exec", "--", "just", recipe])
+        .current_dir(root)
+        .output()
+        .unwrap()
+}
+
+/// Like `assert_ok`, but shows stdout too, where `just` recipes print most of what they say.
+fn assert_ok_verbose(out: &Output) {
+    assert!(
+        out.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+/// The whole path from create-astro with one package manager: the minimal starter, plinth with its
+/// setup, then the project's CI recipe, which installs from the lockfile, runs the gate and builds.
+/// create-astro runs on the node and package manager that `layer`'s mise.toml pins, so the test
+/// follows Renovate's bumps of them.
+fn a_new_astro_project_passes_its_own_ci(layer: &str, create: &[&str]) {
+    let mise_toml = fs::read_to_string(
+        Path::new(REPO)
+            .join("templates")
+            .join(layer)
+            .join("mise.toml"),
+    )
+    .unwrap();
+    let pins: toml::Table = mise_toml.parse().unwrap();
+    let tools: Vec<String> = ["node", "pnpm", "bun"]
+        .iter()
+        .filter_map(|tool| Some(format!("{tool}@{}", pins["tools"].get(tool)?.as_str()?)))
+        .collect();
+
+    let tmp = TempDir::new().unwrap();
+    let mut args: Vec<&str> = vec!["exec"];
+    args.extend(tools.iter().map(String::as_str));
+    args.push("--");
+    args.extend(create);
+    args.extend([
+        "site",
+        "--template",
+        "minimal",
+        "--install",
+        "--no-git",
+        "--skip-houston",
+        "--yes",
+    ]);
+    let new = Command::new("mise")
+        .args(&args)
+        .current_dir(tmp.path())
         .output()
         .unwrap();
-    assert!(
-        check.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&check.stdout),
-        String::from_utf8_lossy(&check.stderr)
-    );
+    assert_ok_verbose(&new);
+    let root = tmp.path().join("site");
+    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    assert_ok_verbose(&out);
+    assert_ok_verbose(&just(&root, "ci"));
+}
+
+#[test]
+#[ignore]
+fn a_new_astro_project_with_npm_passes_its_own_ci() {
+    // npm needs the `--` to hand the flags to create-astro.
+    a_new_astro_project_passes_its_own_ci("astro", &["npm", "create", "astro@latest", "--"]);
+}
+
+#[test]
+#[ignore]
+fn a_new_astro_project_with_pnpm_passes_its_own_ci() {
+    a_new_astro_project_passes_its_own_ci("astro-pnpm", &["pnpm", "create", "astro@latest"]);
+}
+
+#[test]
+#[ignore]
+fn a_new_astro_project_with_bun_passes_its_own_ci() {
+    a_new_astro_project_passes_its_own_ci("astro-bun", &["bun", "create", "astro@latest"]);
 }

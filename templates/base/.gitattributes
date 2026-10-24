@@ -3,4 +3,6 @@
 # Generated lockfiles: GitHub collapses their diffs and leaves them out of the language stats.
 Cargo.lock linguist-generated
 bun.lock linguist-generated
+package-lock.json linguist-generated
+pnpm-lock.yaml linguist-generated
 uv.lock linguist-generated
