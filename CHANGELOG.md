@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/muradmadi/plinth/compare/v0.8.0...v0.9.0) (2026-10-24)
+
+
+### Features
+
+* set up Astro projects ([#32](https://github.com/muradmadi/plinth/issues/32)) ([5024c86](https://github.com/muradmadi/plinth/commit/5024c86760c8cbd89b6339904c00ff0b72112783))
+* set up React, Hono and plain TypeScript projects as well as Astro ([#34](https://github.com/muradmadi/plinth/issues/34)) ([b47b6c1](https://github.com/muradmadi/plinth/commit/b47b6c13ddc1e545aa74beae8331a744c196380a))
+
 ## [0.8.0](https://github.com/muradmadi/plinth/compare/v0.7.0...v0.8.0) (2026-10-24)
 
 
