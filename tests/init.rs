@@ -114,6 +114,7 @@ fn adds_the_tooling_and_leaves_the_code_alone() {
         "README.md",
         "justfile",
         "mise.toml",
+        "plinth.just",
         "release-please-config.json",
         "src/main.rs",
     ];
@@ -220,6 +221,8 @@ fn adds_the_tooling_to_an_astro_project_and_leaves_its_code_alone() {
         "mise.toml",
         "package-lock.json",
         "package.json",
+        "plinth.eslint.mjs",
+        "plinth.just",
         "release-please-config.json",
         "src/pages/index.astro",
     ];
@@ -241,7 +244,7 @@ fn adds_the_tooling_to_an_astro_project_and_leaves_its_code_alone() {
             .contains("\"release-type\": \"node\"")
     );
     assert!(
-        fs::read_to_string(root.join("justfile"))
+        fs::read_to_string(root.join("plinth.just"))
             .unwrap()
             .contains("npx --no -- astro check")
     );
@@ -745,10 +748,47 @@ fn a_new_bun_monorepo_passes_its_own_ci() {
     assert!(manifest.contains("\"apps/*\""), "{manifest}");
     assert!(!root.join("apps/api/bun.lock").exists());
     assert!(root.join("bun.lock").exists());
-    let justfile = fs::read_to_string(root.join("justfile")).unwrap();
+    let justfile = fs::read_to_string(root.join("plinth.just")).unwrap();
     assert!(justfile.contains("cd apps/site && bun x --no-install astro check"));
     assert!(justfile.contains("tsc -b apps/web"));
     assert!(justfile.contains("tsc --noEmit --skipLibCheck -p packages/core"));
+
+    // The monorepo grows by a second app; plinth fits the gate to it and leaves the rest alone.
+    for command in [
+        &[
+            "bun",
+            "create",
+            "vite@latest",
+            "apps/admin",
+            "--template",
+            "react-ts",
+            "--no-interactive",
+        ][..],
+        &["bun", "install"],
+    ] {
+        assert_ok_verbose(&with_tools("typescript-bun", &root, command));
+    }
+    let out = plinth(&["init", "--no-github", "--dir", root.to_str().unwrap()]);
+    assert_ok_verbose(&out);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("Updated:\n  plinth.eslint.mjs\n  plinth.just\n"),
+        "{stdout}"
+    );
+    let justfile = fs::read_to_string(root.join("plinth.just")).unwrap();
+    assert!(justfile.contains("cd apps/admin && bun x --no-install vite build"));
+    // The Prettier config stays the project's: plinth says what to add, and its owner adds it.
+    let (_, rest) = stdout.split_once("for apps/admin; add ").expect(&stdout);
+    let (style, _) = rest.split_once(" to its \"overrides\"").unwrap();
+    let rc = root.join(".prettierrc.json");
+    let text = fs::read_to_string(&rc).unwrap();
+    fs::write(
+        &rc,
+        text.replacen("\"overrides\": [", &format!("\"overrides\": [{style}, "), 1),
+    )
+    .unwrap();
+    assert_ok_verbose(&just(&root, "format"));
+    assert_ok_verbose(&just(&root, "ci"));
     fs::remove_dir_all(root.parent().unwrap()).unwrap();
 }
 
@@ -826,7 +866,7 @@ fn a_new_npm_monorepo_passes_its_own_ci() {
         ],
         &[],
     );
-    let justfile = fs::read_to_string(root.join("justfile")).unwrap();
+    let justfile = fs::read_to_string(root.join("plinth.just")).unwrap();
     assert!(justfile.contains("cd apps/site && npx --no -- astro build"));
     fs::remove_dir_all(root.parent().unwrap()).unwrap();
 }

@@ -98,17 +98,15 @@ fn init(args: InitArgs) -> Result<()> {
         })
     };
 
-    let files = scaffold::render(
-        project.lang,
-        &Vars {
-            name: name.clone(),
-            description: args.description,
-            package: project.package.clone(),
-            version: project.version.clone(),
-            pm: project.pm,
-            members: project.members.clone(),
-        },
-    )?;
+    let vars = Vars {
+        name: name.clone(),
+        description: args.description,
+        package: project.package.clone(),
+        version: project.version.clone(),
+        pm: project.pm,
+        members: project.members.clone(),
+    };
+    let files = scaffold::render(project.lang, &vars)?;
     let mut plan = scaffold::plan(&root, files)?;
     if let Some(assembly) = &project.assembly {
         plan.assemble(assembly);
@@ -119,7 +117,10 @@ fn init(args: InitArgs) -> Result<()> {
         scaffold::setup_steps(&root, &project, &plan)
     };
     let github_steps = repo.as_ref().map(github::steps).unwrap_or_default();
-    let claude_note = claude_md_note(&root);
+    let notes: Vec<String> = claude_md_note(&root)
+        .into_iter()
+        .chain(scaffold::prettier_notes(&root, &vars))
+        .collect();
 
     if args.dry_run {
         if plan.is_empty() {
@@ -130,6 +131,10 @@ fn init(args: InitArgs) -> Result<()> {
             plan.add.keys(),
         );
         print_paths("Would append to:", plan.append.keys());
+        print_paths(
+            "Would update, as plinth wrote them and keeps them in step:",
+            plan.update.keys(),
+        );
         print_paths("Would edit, to give the package a name:", plan.edit.keys());
         print_paths(
             "Would remove, as one install at the root replaces them:",
@@ -138,7 +143,7 @@ fn init(args: InitArgs) -> Result<()> {
         print_paths("Would leave alone, as the project has its own:", &plan.keep);
         print_steps("Then run there:", &setup);
         print_steps("Then set up GitHub:", &github_steps);
-        if let Some(note) = &claude_note {
+        for note in &notes {
             println!("{note}");
         }
         return Ok(());
@@ -157,6 +162,7 @@ fn init(args: InitArgs) -> Result<()> {
         root.display(),
         project.lang.name()
     );
+    print_paths("Updated:", plan.update.keys());
     if !plan.keep.is_empty() {
         println!("Left alone, as the project has its own:");
         for path in &plan.keep {
@@ -166,7 +172,7 @@ fn init(args: InitArgs) -> Result<()> {
     if let Some(repo) = repo {
         println!("GitHub: https://github.com/{}", repo.slug());
     }
-    if let Some(note) = claude_note {
+    for note in notes {
         println!("{note}");
     }
     Ok(())

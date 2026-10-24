@@ -87,8 +87,14 @@ Expo and other frameworks, React without Vite, yarn, and a project that asks for
 
 It adds the files the project lacks, appends missing lines to `.gitignore` and `.gitattributes`,
 adds its house rules to an AGENTS.md the project already has, and lists the files it left alone
-because the project has its own, an ESLint or Prettier config under any name included. Running it
-again adds nothing.
+because the project has its own, an ESLint or Prettier config under any name included.
+
+The gate itself lives in two files plinth owns: `plinth.just` with the `just check` recipes, and for
+TypeScript `plinth.eslint.mjs` with the lint rules. The project's `justfile` and `eslint.config.mjs`
+import them; they are written once and left to the project, and a recipe or rule there replaces
+plinth's. Running plinth again rewrites the owned files to fit the project as it is then, such as a
+monorepo with a new package, and adds nothing else. It says what to add to `.prettierrc.json` for
+a new package's style. Delete an owned file's first line to make it the project's own.
 
 What `just check` runs:
 
