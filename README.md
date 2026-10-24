@@ -10,6 +10,9 @@ this repo drives the same CLI.
 
 ## Install
 
+Needs [mise](https://mise.jdx.dev), git, and the [GitHub CLI](https://cli.github.com) logged in
+(`gh auth login`); the repo is created under the account gh is logged in as.
+
 ```sh
 mise use -g github:muradmadi/plinth
 ```
@@ -37,12 +40,19 @@ Patch and minor updates merge themselves once `check` passes. It needs the
 repositories. An install for all repositories starts in Silent mode, which opens no PRs; switch the
 account to Interactive on the [Mend developer portal](https://developer.mend.io).
 
+### Release PRs
+
+release-please opens its release PR with the workflow's own token, and GitHub holds the workflows
+on such a PR until someone clicks "Approve workflows to run" on it. Click it once per release PR;
+its `check` then runs and the PR can merge.
+
 ## Use
 
 ```sh
-cargo new demo && cd demo
-plinth init --dry-run                  # lists the files and commands, touches nothing
-plinth init --description "…"          # adds the tooling, sets it up, creates muradmadi/demo
+mise exec rust -- cargo new demo   # works without a global Rust; plinth pins the project's own
+cd demo
+plinth init --dry-run              # lists the files and commands, touches nothing
+plinth init --description "…"      # adds the tooling, sets it up, creates <you>/demo
 ```
 
 plinth works out the language from the project's manifest; Rust (`Cargo.toml`) is the only one so

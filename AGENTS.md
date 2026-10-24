@@ -7,8 +7,7 @@ updates, PR and issue templates, and a pre-commit guard. The project itself come
 first (`cargo new`, `bun create`, `uv init`); `plinth init` then works out the language from its
 manifest. This repo is set up exactly the way plinth sets up others.
 
-The build plan is `~/.claude/plans/warm-baking-aho.md`. Rust is the only language so far; TypeScript
-(Bun) and Python (uv) come next, each with its own plan.
+Rust is the only language so far; TypeScript (Bun) and Python (uv) are the next candidates.
 
 ## Principles
 
