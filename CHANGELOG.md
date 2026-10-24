@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/muradmadi/plinth/compare/v0.4.0...v0.5.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* set up a project that already exists instead of generating one ([#16](https://github.com/muradmadi/plinth/issues/16))
+
+### Features
+
+* set up a project that already exists instead of generating one ([#16](https://github.com/muradmadi/plinth/issues/16)) ([0f2a49c](https://github.com/muradmadi/plinth/commit/0f2a49c1af489a400c1e42317c3b5ef9b4943da9))
+
 ## [0.4.0](https://github.com/muradmadi/plinth/compare/v0.3.0...v0.4.0) (2026-10-23)
 
 
