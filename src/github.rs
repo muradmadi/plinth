@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
@@ -29,7 +30,7 @@ const LABELS: &[(&str, &str, &str)] = &[
 ];
 
 /// Protects the default branch: changes arrive only as a squash-merged PR whose `check` job passed.
-/// Every stack's CI must name its gate job `check`. The branch needn't be up to date with `main`:
+/// Every language's CI must name its gate job `check`. The branch needn't be up to date with `main`:
 /// release-please opens a PR after every merge, so requiring that would leave every other PR behind
 /// each time. Personal repos can't use a merge queue, and CI on `main` catches what slips through.
 const RULESET: &str = r#"{
@@ -78,6 +79,40 @@ pub fn ensure_absent(repo: &Repo) -> Result<()> {
         .context("couldn't run gh; is it installed?")?;
     if out.status.success() {
         bail!("{} already exists on GitHub", repo.slug());
+    }
+    Ok(())
+}
+
+/// Fails if the project's git repo can't take plinth's commit and push: it already has a remote,
+/// or it has commits and uncommitted changes that the commit would sweep in. A repo without
+/// commits yet, as `cargo new` leaves it, is fine; its first commit is the whole project.
+pub fn ensure_ready(root: &Path) -> Result<()> {
+    if !root.join(".git").exists() {
+        return Ok(());
+    }
+    let git = |args: &[&str]| {
+        Command::new("git")
+            .args(args)
+            .current_dir(root)
+            .output()
+            .context("couldn't run git; is it installed?")
+    };
+    if git(&["remote", "get-url", "origin"])?.status.success() {
+        bail!(
+            "{} already has a git remote; plinth only creates new GitHub repos so far, so run it \
+             with --no-github",
+            root.display()
+        );
+    }
+    let has_commits = git(&["rev-parse", "--verify", "--quiet", "HEAD"])?
+        .status
+        .success();
+    if has_commits && !git(&["status", "--porcelain"])?.stdout.is_empty() {
+        bail!(
+            "{} has uncommitted changes; commit or stash them first, so plinth's commit holds only \
+             its own files",
+            root.display()
+        );
     }
     Ok(())
 }

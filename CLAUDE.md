@@ -1,16 +1,21 @@
 # plinth
 
-plinth is a Rust CLI that scaffolds a new project and sets up its GitHub repo in the house style
-`~/Projects/tide` established: mise + just, `just ci` as the gate, squash-only PRs behind a `main`
-ruleset, a Conventional Commit title check, release-please, monthly grouped Dependabot, PR and issue
-templates, and a pre-commit guard. This repo is set up exactly the way plinth sets up others.
+plinth is a Rust CLI that adds the tooling around a project and sets up its GitHub repo in the house
+style `~/Projects/tide` established: mise + just, `just ci` as the gate, squash-only PRs behind a
+`main` ruleset, a Conventional Commit title check, release-please, monthly grouped Dependabot, PR
+and issue templates, and a pre-commit guard. The project itself comes from its own tool first
+(`cargo new`, `bun create`, `uv init`); `plinth init` then works out the language from its manifest.
+This repo is set up exactly the way plinth sets up others.
 
-The build plan is `~/.claude/plans/warm-baking-aho.md`. Rust is the only stack until the stack
-discussion settles TypeScript.
+The build plan is `~/.claude/plans/warm-baking-aho.md`. Rust is the only language so far; TypeScript
+(Bun) and Python (uv) come next, each with its own plan.
 
 ## Principles
 
-- **Never prompts.** Every choice is a flag, so Claude or any other harness can drive it.
+- **Never prompts.** Every choice is a flag, so Claude or any other harness can drive it. What can be
+  read from the project, such as its language, is read rather than asked.
+- **Never touches the project's code.** plinth adds files the project lacks, appends missing lines
+  to `.gitignore`, and leaves every other existing file as it is. No framework or source templates.
 - **Practise what it preaches.** The shared files plinth generates match this repo's own copies; a
   test enforces it. Change one, change both. A Dependabot PR that bumps an action in `.github/` fails
   that test until the same bump is made under `templates/`; push it onto Dependabot's branch.
@@ -20,14 +25,14 @@ discussion settles TypeScript.
 ## Layout
 
 ```
-src/main.rs        CLI: `new` and `stacks` (clap), name and directory checks
-src/scaffold.rs    renders the layers, writes the files, runs the setup commands
-src/stack.rs       the stacks and their setup commands
+src/main.rs        CLI: `init` (clap), name checks, the dry-run report
+src/lang.rs        works out the language from the manifest; each language's setup commands
+src/scaffold.rs    renders the layers, sorts them into add / append / leave alone, writes them
 src/github.rs      the first commit, `gh repo create`, repo settings, labels, the `main` ruleset
 src/step.rs        a command as data, so `--dry-run` prints exactly what a run would do
 templates/base/    files every project gets; `.j2` files are rendered with minijinja
-templates/rust/    the Rust stack; a file here replaces a base file at the same path
-tests/new.rs       runs the binary, including the check that it reproduces this repo
+templates/rust/    the Rust layer; a file here replaces a base file at the same path
+tests/init.rs      runs the binary, including the checks that it reproduces this repo
 .claude-plugin/    marketplace.json: this repo is a Claude Code marketplace with one plugin
 plugin/            the plinth plugin: plugin.json and skills/plinth/SKILL.md, which drives the CLI
 ```

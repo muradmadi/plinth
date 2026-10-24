@@ -2,7 +2,7 @@
 name = "plinth"
 version = "0.4.0"
 edition = "2024"
-description = "Scaffold a new project in one stack, with its GitHub repo set up the same way every time"
+description = "Set up the tooling around a project and its GitHub repo, the same way every time"
 license = "MIT"
 repository = "https://github.com/muradmadi/plinth"
 # Released as binaries on GitHub, not to crates.io, where the name is taken.
@@ -13,6 +13,7 @@ anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive"] }
 include_dir = "0.7.4"
 minijinja = "3.0.3"
+toml = "1.1.8"
 
 [dev-dependencies]
 tempfile = "3.27.0"
