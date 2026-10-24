@@ -6,7 +6,7 @@ description: Set up a project's tooling and GitHub repo with the plinth CLI, aft
 # plinth
 
 plinth adds the tooling around a project: mise and just with a `just check` gate, CI,
-release-please, Dependabot, PR and issue templates, a pre-commit guard and CLAUDE.md. Then it
+release-please, Renovate, PR and issue templates, a pre-commit guard and CLAUDE.md. Then it
 creates the GitHub repo with squash-only merges, the label set and a `main` ruleset. It never
 touches the project's code and never prompts; every choice is a flag. The project comes first,
 from its own tool. Your job is to collect the choices, create the project, show plinth's plan, get

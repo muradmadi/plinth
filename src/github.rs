@@ -19,14 +19,14 @@ impl Repo {
     }
 }
 
-/// The labels every project uses. Issue templates apply `bug` and `feature`, Dependabot applies
+/// The labels every project uses. Issue templates apply `bug` and `feature`, Renovate applies
 /// `dependencies`, and a PR gets the one matching its title's type.
 const LABELS: &[(&str, &str, &str)] = &[
     ("feature", "2da44e", "Something new it can do"),
     ("bug", "d73a4a", "Something it does wrong"),
     ("docs", "0075ca", "README, CLAUDE.md, docs/"),
     ("ci", "6e7781", "Workflows, repo settings, tooling"),
-    ("dependencies", "0366d6", "Dependency updates (Dependabot)"),
+    ("dependencies", "0366d6", "Dependency updates (Renovate)"),
 ];
 
 /// Protects the default branch: changes arrive only as a squash-merged PR whose `check` job passed.

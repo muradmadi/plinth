@@ -2,7 +2,7 @@
 
 Sets up the tooling around a project, then creates and configures its GitHub repo the same way
 every time: mise and just with a `just check` gate, CI, squash-only PRs behind a `main` ruleset, a
-Conventional Commit title check, release-please and monthly Dependabot. It never touches the
+Conventional Commit title check, release-please and monthly Renovate updates. It never touches the
 project's code: create the project with its own tool first, then run `plinth init` in it. A Claude
 Code plugin in this repo drives the same CLI.
 
@@ -23,6 +23,15 @@ Each release carries builds for Linux x86_64 and macOS on Apple silicon.
 The `plinth` skill turns "start a new Rust CLI called wordcount" into `cargo new wordcount` and a
 `plinth init` call: it shows the `--dry-run` first and waits for a yes before creating the GitHub
 repo. It needs the CLI installed as above.
+
+### Renovate
+
+Every project plinth sets up, plinth included, has `.github/renovate.json5`: monthly grouped
+updates of its dependencies, its GitHub Actions (pinned by commit SHA) and the tools in `mise.toml`.
+Patch and minor updates merge themselves once `check` passes. It needs the
+[Renovate app](https://github.com/apps/renovate) installed once on the GitHub account, for all
+repositories. An install for all repositories starts in Silent mode, which opens no PRs; switch the
+account to Interactive on the [Mend developer portal](https://developer.mend.io).
 
 ## Use
 

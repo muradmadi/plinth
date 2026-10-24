@@ -2,9 +2,10 @@
 
 plinth is a Rust CLI that adds the tooling around a project and sets up its GitHub repo in the house
 style `~/Projects/tide` established: mise + just, `just ci` as the gate, squash-only PRs behind a
-`main` ruleset, a Conventional Commit title check, release-please, monthly grouped Dependabot, PR
-and issue templates, and a pre-commit guard. The project itself comes from its own tool first
-(`cargo new`, `bun create`, `uv init`); `plinth init` then works out the language from its manifest.
+`main` ruleset, a Conventional Commit title check, release-please, monthly grouped Renovate
+updates, PR and issue templates, and a pre-commit guard. The project itself comes from its own tool
+first (`cargo new`, `bun create`, `uv init`); `plinth init` then works out the language from its
+manifest.
 This repo is set up exactly the way plinth sets up others.
 
 The build plan is `~/.claude/plans/warm-baking-aho.md`. Rust is the only language so far; TypeScript
@@ -17,8 +18,8 @@ The build plan is `~/.claude/plans/warm-baking-aho.md`. Rust is the only languag
 - **Never touches the project's code.** plinth adds files the project lacks, appends missing lines
   to `.gitignore`, and leaves every other existing file as it is. No framework or source templates.
 - **Practise what it preaches.** The shared files plinth generates match this repo's own copies; a
-  test enforces it. Change one, change both. A Dependabot PR that bumps an action in `.github/` fails
-  that test until the same bump is made under `templates/`; push it onto Dependabot's branch.
+  test enforces it. Change one, change both. Renovate scans `templates/` too, so its PRs bump an
+  action or a mise tool in both copies at once.
 - **Asks before touching GitHub.** `--dry-run` shows the `gh` calls; new repos are private unless
   `--public` is given.
 
