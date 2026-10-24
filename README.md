@@ -7,7 +7,7 @@ behind a `main` ruleset, a Conventional Commit title check, release-please and m
 updates, and an AGENTS.md with those rules for coding agents. It never touches the project's code:
 create the project with its own tool first, then run `plinth init` in it. It sets up Rust projects
 and TypeScript ones so far: Astro sites, React apps built with Vite, Hono servers and plain
-packages. A Claude Code plugin in this repo drives the same CLI.
+packages, alone or together in a monorepo. A Claude Code plugin in this repo drives the same CLI.
 
 ## Install
 
@@ -74,7 +74,14 @@ and `bun init` for a plain package. plinth then works out what the project is fr
   what kind: `astro` for an Astro site, `react` with `vite` for a React app, `hono` for a server;
   anything else is a plain package.
 
-It refuses what it can't set up yet and says why: Cargo and npm workspaces, Next.js, Vue, Svelte,
+A monorepo gets one gate at its root that covers each package by its kind. An existing one lists
+its packages in package.json's `workspaces` or in `pnpm-workspace.yaml`. To start a new one, make
+each package with its own tool in its own directory, such as `apps/web` and `apps/api`, then run
+plinth in the directory above them. It assembles the root: a `package.json` listing `apps/*`, a
+name for each package that lacks one, and one install at the root in place of each package's own
+lockfile and `node_modules`. The dry run lists each change first.
+
+It refuses what it can't set up yet and says why: Cargo workspaces, Next.js, Vue, Svelte,
 Expo and other frameworks, React without Vite, yarn, and a project that asks for TypeScript 7
 (`bun init` does; change it to `~6.0`).
 

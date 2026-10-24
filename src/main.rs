@@ -2,6 +2,7 @@ mod github;
 mod lang;
 mod scaffold;
 mod step;
+mod workspace;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -78,7 +79,7 @@ fn init(args: InitArgs) -> Result<()> {
     if args.description.contains(['\n', '\r']) {
         bail!("--description must be one line");
     }
-    let project = lang::detect(&root)?;
+    let project = lang::detect(&root, &name)?;
 
     let repo = if args.no_github {
         None
@@ -108,7 +109,10 @@ fn init(args: InitArgs) -> Result<()> {
             members: project.members.clone(),
         },
     )?;
-    let plan = scaffold::plan(&root, files)?;
+    let mut plan = scaffold::plan(&root, files)?;
+    if let Some(assembly) = &project.assembly {
+        plan.assemble(assembly);
+    }
     let setup = if args.no_setup {
         Vec::new()
     } else {
@@ -118,7 +122,7 @@ fn init(args: InitArgs) -> Result<()> {
     let claude_note = claude_md_note(&root);
 
     if args.dry_run {
-        if plan.add.is_empty() && plan.append.is_empty() {
+        if plan.is_empty() {
             println!("Nothing to add to {}", root.display());
         }
         print_paths(
@@ -126,6 +130,11 @@ fn init(args: InitArgs) -> Result<()> {
             plan.add.keys(),
         );
         print_paths("Would append to:", plan.append.keys());
+        print_paths("Would edit, to give the package a name:", plan.edit.keys());
+        print_paths(
+            "Would remove, as one install at the root replaces them:",
+            &plan.remove,
+        );
         print_paths("Would leave alone, as the project has its own:", &plan.keep);
         print_steps("Then run there:", &setup);
         print_steps("Then set up GitHub:", &github_steps);

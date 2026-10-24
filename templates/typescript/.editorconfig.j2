@@ -7,14 +7,18 @@ charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
-{%- if indent == "tab" %}
+indent_style = space
+indent_size = 2
+{%- if tab_globs %}
+
+# create-astro indents with tabs.
+{%- for glob in tab_globs %}
+[{{ glob }}]
 indent_style = tab
+{%- endfor %}
 
 # Two spaces where the tools that write these files use them, npm's package.json included.
 [*.{json,json5,md,toml,yml,yaml}]
-indent_style = space
-indent_size = 2
-{%- else %}
 indent_style = space
 indent_size = 2
 {%- endif %}

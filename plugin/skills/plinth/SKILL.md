@@ -19,18 +19,20 @@ Run `plinth --version`. If it isn't found, stop and tell the user it installs wi
 
 ## 2. Collect the choices
 
-plinth sets up Rust projects and single TypeScript packages so far: an Astro site, a React app built
-with Vite, a Hono server, or a plain package such as a library or CLI. It finds them from
-`Cargo.toml` or `package.json`. If the user wants anything else, such as a Next.js app, a monorepo
-of several packages or a Python tool, say plinth can't set it up yet and stop. Don't substitute
-something it supports.
+plinth sets up Rust projects and TypeScript ones so far: an Astro site, a React app built with
+Vite, a Hono server, or a plain package such as a library or CLI, alone or several together in a
+monorepo. It finds them from `Cargo.toml` or `package.json`. If the user wants anything else, such
+as a Next.js app, a Cargo workspace or a Python tool, say plinth can't set it up yet and stop. Don't
+substitute something it supports.
 
 Settle, asking only for what the user hasn't already said:
 
 - **Name**: lowercase letters, digits and dashes, starting with a letter. It becomes the
   directory and the repo name. Suggest one if they described the project but didn't name it.
 - **Kind**: for Rust, a binary (`cargo new`) or a library (`cargo new --lib`). For TypeScript,
-  which of the four, and the package manager: bun unless they prefer npm or pnpm.
+  which of the four, and the package manager: bun unless they prefer npm or pnpm. For a monorepo,
+  which kind each package is and where it goes: apps in `apps/<name>`, shared code in
+  `packages/<name>`, one package manager for all of them.
 - **Description**: one line on what it does. Draft it from what they said and let them change it.
 - **Where**: `~/Projects/<name>` unless they say otherwise.
 - **GitHub**: private unless they ask for public. `--no-github` if they don't want a repo.
@@ -58,6 +60,13 @@ the project's own versions after.
   which plinth refuses until its lint supports 7: change `"typescript": "^7"` in package.json to
   `"~6.0"` and run `bun install` before plinth.
 
+- **Monorepo:** make the directory, then each package in it with the command above, using
+  `apps/<name>` or `packages/<name>` as `<dir>` and running from the monorepo's directory. With
+  pnpm, `pnpm create hono@latest <dir> --template nodejs --install --pm pnpm` makes the server; it
+  asks for TypeScript 7 too, so change it as for `bun init`. plinth then assembles the root and
+  installs once there. create-hono's Node starter isn't Prettier-formatted, so run `just format`
+  once after plinth if `just check` says so.
+
 The directory must not already exist; if it does, ask whether to set up that project instead.
 Never delete a directory to make room.
 
@@ -70,7 +79,8 @@ plinth init --dir ~/Projects/demo --description "What it does" --dry-run
 ```
 
 Show the user the output: the files it adds, the files it leaves alone, the setup commands (for
-TypeScript, the dev dependencies it installs), and the `gh` calls. Creating a GitHub repo is
+TypeScript, the dev dependencies it installs), and the `gh` calls. For a new monorepo it also lists
+the package names it adds and the lockfiles and `node_modules` it removes. Creating a GitHub repo is
 visible outside this machine, so get an explicit yes to this exact plan, including private or
 public, before going on.
 

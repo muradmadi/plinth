@@ -34,15 +34,15 @@ format:
 lint:
     {{ exec }} eslint --max-warnings 0 .
 
-# Type-check the project
+# Type-check every package, though not the type declarations its dependencies ship
 typecheck:
 {%- for m in members %}
 {%- if m.kind == "astro" %}
-    {{ exec }} astro check --root {{ m.path }}
+    {{ m.cd }}{{ exec }} astro check
 {%- elif m.tsconfig == "solution" %}
     {{ exec }} tsc -b {{ m.path }}
 {%- elif m.tsconfig == "plain" %}
-    {{ exec }} tsc --noEmit -p {{ m.path }}
+    {{ exec }} tsc --noEmit --skipLibCheck -p {{ m.path }}
 {%- endif %}
 {%- endfor %}
 {%- if pm == "bun" %}
@@ -56,9 +56,9 @@ test:
 build:
 {%- for m in members %}
 {%- if m.kind == "astro" %}
-    {{ exec }} astro build --root {{ m.path }}
+    {{ m.cd }}{{ exec }} astro build
 {%- elif m.kind == "web" %}
-    {{ exec }} vite build {{ m.path }}
+    {{ m.cd }}{{ exec }} vite build
 {%- endif %}
 {%- endfor %}
 
