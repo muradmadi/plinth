@@ -68,5 +68,5 @@ of the new AGENTS.md. Offer to add `@AGENTS.md` as its first line, and add it on
 Say where the project is and link the repo. Then the two things to know:
 
 - Changes reach `main` only through a PR whose `check` passes.
-- After the first release-worthy merge, release-please opens a release PR, and `release.yml` runs
-  `check` on it. Merging it makes the release.
+- After the first release-worthy merge, release-please opens a release PR. GitHub holds its
+  workflows until someone clicks "Approve workflows to run" on it; after that it can merge.

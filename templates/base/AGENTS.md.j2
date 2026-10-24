@@ -17,7 +17,8 @@ printed. In a shell without mise activated, run `mise exec -- just check`.
   `feat` releases a minor version, `fix` and `perf` a patch, and `!` after the type a major;
   `refactor`, `docs`, `test`, `build`, `ci`, `chore` and `revert` don't release.
 - release-please owns `CHANGELOG.md` and the version, and Renovate owns dependency and tool
-  updates; don't edit those by hand.
+  updates; don't edit those by hand. release-please's PRs need "Approve workflows to run" clicked
+  once before their `check` runs.
 - Labels: `feature`, `bug`, `docs`, `ci`, `dependencies`.
 - Don't merge a PR unless the owner asks.
 - Never commit `.env` files, databases or backups; the pre-commit hook and gitleaks refuse secrets.
