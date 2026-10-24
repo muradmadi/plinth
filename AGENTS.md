@@ -57,8 +57,9 @@ plugin/            the plinth plugin: plugin.json and skills/plinth/SKILL.md, wh
 ## Releases
 
 release-please makes each release from the merged titles. `release.yml` then starts
-`publish.yml` on the new tag, which builds `x86_64-unknown-linux-gnu` and `aarch64-apple-darwin`
-and attaches `plinth-<target>.tar.gz`, the files `mise use -g github:muradmadi/plinth` installs.
+`publish.yml` on the new tag, which builds `x86_64-unknown-linux-gnu` and `aarch64-apple-darwin`,
+attests each `plinth-<target>.tar.gz` (`actions/attest`; attestations need a public repo or
+Enterprise Cloud) and attaches them, the files `mise use -g github:muradmadi/plinth` installs.
 The `publish.yml` hook in `release.yml` is shared with every generated project; only plinth has a
 `publish.yml` so far.
 
