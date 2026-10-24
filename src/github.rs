@@ -24,7 +24,7 @@ impl Repo {
 const LABELS: &[(&str, &str, &str)] = &[
     ("feature", "2da44e", "Something new it can do"),
     ("bug", "d73a4a", "Something it does wrong"),
-    ("docs", "0075ca", "README, CLAUDE.md, docs/"),
+    ("docs", "0075ca", "README, AGENTS.md, docs/"),
     ("ci", "6e7781", "Workflows, repo settings, tooling"),
     ("dependencies", "0366d6", "Dependency updates (Renovate)"),
 ];

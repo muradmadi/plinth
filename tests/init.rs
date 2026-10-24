@@ -71,6 +71,7 @@ fn adds_the_tooling_and_leaves_the_code_alone() {
     assert_ok(&init_without_setup(&root, &["--description", "A demo"]));
 
     let expected = [
+        ".claude/settings.json",
         ".editorconfig",
         ".gitattributes",
         ".githooks/pre-commit",
@@ -84,7 +85,7 @@ fn adds_the_tooling_and_leaves_the_code_alone() {
         ".github/workflows/title.yml",
         ".gitignore",
         ".release-please-manifest.json",
-        "CLAUDE.md",
+        "AGENTS.md",
         "Cargo.toml",
         "README.md",
         "justfile",
@@ -129,6 +130,20 @@ fn keeps_existing_files_and_appends_missing_ignores() {
     assert_eq!(ignore.matches("/target").count(), 1);
     assert!(ignore.ends_with("\n*.db\n"));
     assert!(String::from_utf8_lossy(&out.stdout).contains("  README.md"));
+}
+
+#[test]
+fn says_how_an_existing_claude_md_can_include_agents_md() {
+    let tmp = TempDir::new().unwrap();
+    let root = cargo_project(&tmp, "demo");
+    fs::write(root.join("CLAUDE.md"), "# Notes for Claude\n").unwrap();
+    let out = init_without_setup(&root, &["--dry-run"]);
+    assert_ok(&out);
+    assert!(String::from_utf8_lossy(&out.stdout).contains("add `@AGENTS.md`"));
+
+    fs::write(root.join("CLAUDE.md"), "@AGENTS.md\n\n# Notes for Claude\n").unwrap();
+    let out = init_without_setup(&root, &["--dry-run"]);
+    assert!(!String::from_utf8_lossy(&out.stdout).contains("@AGENTS.md"));
 }
 
 #[test]
@@ -286,7 +301,7 @@ fn setting_up_plinth_reproduces_this_repo() {
         &["--description", env!("CARGO_PKG_DESCRIPTION")],
     ));
 
-    let not_compared = ["Cargo.toml", "CLAUDE.md", "README.md"];
+    let not_compared = ["Cargo.toml", "AGENTS.md", "README.md"];
     for path in tree(&root) {
         if not_compared.iter().any(|own| path == Path::new(own)) {
             continue;

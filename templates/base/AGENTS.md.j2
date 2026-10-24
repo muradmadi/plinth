@@ -1,0 +1,24 @@
+# {{ name }}
+
+{% if description %}{{ description }}{% else %}TODO: what {{ name }} is and who it is for.{% endif %}
+
+## Working here
+
+The tools are pinned in `mise.toml`: run `mise install`, then `just setup` once. `just check` is the
+gate, the same one CI runs (`just ci`): run it before calling a change done, and report what it
+printed. In a shell without mise activated, run `mise exec -- just check`.
+
+## Git and GitHub
+
+- Changes reach `main` only through a pull request whose `check` passes; a ruleset enforces it.
+  One branch per change, kept to one commit.
+- PRs are squash-merged, so the PR title becomes the commit on `main`. Titles are Conventional
+  Commits, `type: description`, with the description in the imperative and starting lowercase.
+  `feat` releases a minor version, `fix` and `perf` a patch, and `!` after the type a major;
+  `refactor`, `docs`, `test`, `build`, `ci`, `chore` and `revert` don't release.
+- release-please owns `CHANGELOG.md` and the version, and Renovate owns dependency and tool
+  updates; don't edit those by hand. release-please's PRs need "Approve workflows to run" clicked
+  once before their `check` runs.
+- Labels: `feature`, `bug`, `docs`, `ci`, `dependencies`.
+- Don't merge a PR unless the owner asks.
+- Never commit `.env` files, databases or backups; the pre-commit hook and gitleaks refuse secrets.

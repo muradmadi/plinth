@@ -4,7 +4,7 @@ mod scaffold;
 mod step;
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
@@ -113,6 +113,7 @@ fn init(args: InitArgs) -> Result<()> {
         scaffold::setup_steps(&root, project.lang)
     };
     let github_steps = repo.as_ref().map(github::steps).unwrap_or_default();
+    let claude_note = claude_md_note(&root);
 
     if args.dry_run {
         if plan.add.is_empty() && plan.append.is_empty() {
@@ -126,6 +127,9 @@ fn init(args: InitArgs) -> Result<()> {
         print_paths("Would leave alone, as the project has its own:", &plan.keep);
         print_steps("Then run there:", &setup);
         print_steps("Then set up GitHub:", &github_steps);
+        if let Some(note) = &claude_note {
+            println!("{note}");
+        }
         return Ok(());
     }
 
@@ -151,7 +155,24 @@ fn init(args: InitArgs) -> Result<()> {
     if let Some(repo) = repo {
         println!("GitHub: https://github.com/{}", repo.slug());
     }
+    if let Some(note) = claude_note {
+        println!("{note}");
+    }
     Ok(())
+}
+
+/// Claude Code reads AGENTS.md only when there's no CLAUDE.md, so a project that already has one
+/// needs it to import AGENTS.md. plinth doesn't edit the file; it says what to add.
+fn claude_md_note(root: &Path) -> Option<String> {
+    let text = fs::read_to_string(root.join("CLAUDE.md")).ok()?;
+    if text.contains("@AGENTS.md") {
+        return None;
+    }
+    Some(
+        "Note: Claude Code reads the project's CLAUDE.md instead of AGENTS.md; add `@AGENTS.md` \
+         as its first line to include the house rules."
+            .to_owned(),
+    )
 }
 
 fn print_paths<'a>(heading: &str, paths: impl IntoIterator<Item = &'a PathBuf>) {

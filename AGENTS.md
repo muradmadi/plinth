@@ -5,8 +5,7 @@ style `~/Projects/tide` established: mise + just, `just ci` as the gate, squash-
 `main` ruleset, a Conventional Commit title check, release-please, monthly grouped Renovate
 updates, PR and issue templates, and a pre-commit guard. The project itself comes from its own tool
 first (`cargo new`, `bun create`, `uv init`); `plinth init` then works out the language from its
-manifest.
-This repo is set up exactly the way plinth sets up others.
+manifest. This repo is set up exactly the way plinth sets up others.
 
 The build plan is `~/.claude/plans/warm-baking-aho.md`. Rust is the only language so far; TypeScript
 (Bun) and Python (uv) come next, each with its own plan.
@@ -16,7 +15,8 @@ The build plan is `~/.claude/plans/warm-baking-aho.md`. Rust is the only languag
 - **Never prompts.** Every choice is a flag, so Claude or any other harness can drive it. What can be
   read from the project, such as its language, is read rather than asked.
 - **Never touches the project's code.** plinth adds files the project lacks, appends missing lines
-  to `.gitignore` and `.gitattributes`, and leaves every other existing file as it is. No framework or source templates.
+  to `.gitignore` and `.gitattributes`, and leaves every other existing file as it is. No framework
+  or source templates.
 - **Practise what it preaches.** The shared files plinth generates match this repo's own copies; a
   test enforces it. Change one, change both. Renovate scans `templates/` too, so its PRs bump an
   action or a mise tool in both copies at once.
@@ -34,17 +34,25 @@ src/step.rs        a command as data, so `--dry-run` prints exactly what a run w
 templates/base/    files every project gets; `.j2` files are rendered with minijinja
 templates/rust/    the Rust layer; a file here replaces a base file at the same path
 tests/init.rs      runs the binary, including the checks that it reproduces this repo
+.claude/           settings.json: Claude Code may run `just` unprompted and can't read `.env` files
 .claude-plugin/    marketplace.json: this repo is a Claude Code marketplace with one plugin
 plugin/            the plinth plugin: plugin.json and skills/plinth/SKILL.md, which drives the CLI
 ```
 
 ## Git and GitHub
 
-The global PR workflow applies. `main` is protected by a ruleset: changes reach it only through a
-squash-merged PR whose `check` passes. Branches needn't be up to date with `main`; use "Update
-branch" when a PR should be re-tested against it first. Labels: `feature`, `bug`,
-`docs`, `ci`, `dependencies`. Wait for Murad before merging. release-please's PRs need "Approve workflows
-to run" clicked once before their `check` runs (see `.github/workflows/release.yml`).
+- Changes reach `main` only through a pull request whose `check` passes; a ruleset enforces it.
+  One branch per change, kept to one commit. Branches needn't be up to date with `main`; use
+  "Update branch" when a PR should be re-tested against it first.
+- PRs are squash-merged, so the PR title becomes the commit on `main`. Titles are Conventional
+  Commits, `type: description`, with the description in the imperative and starting lowercase.
+  `feat` releases a minor version, `fix` and `perf` a patch, and `!` after the type a major;
+  `refactor`, `docs`, `test`, `build`, `ci`, `chore` and `revert` don't release.
+- release-please owns `CHANGELOG.md` and the version, and Renovate owns dependency and tool
+  updates; don't edit those by hand. release-please's PRs need "Approve workflows to run" clicked
+  once before their `check` runs (see `.github/workflows/release.yml`).
+- Labels: `feature`, `bug`, `docs`, `ci`, `dependencies`.
+- Wait for Murad before merging.
 
 ## Releases
 
