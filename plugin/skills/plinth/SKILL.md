@@ -1,13 +1,16 @@
 ---
 name: plinth
-description: Start a new project with the plinth CLI, which writes it from a stack's templates and creates and configures its GitHub repo. Use when the user wants to start, scaffold, create, bootstrap or set up a new project, app, tool or repo, or asks for plinth by name. Not for adding files to a project that already exists.
+description: Set up a project's tooling and GitHub repo with the plinth CLI, after creating the project with its own tool (cargo new). Use when the user wants to start, scaffold, create, bootstrap or set up a new project, app, tool or repo, wants the house tooling (mise, just, CI, release-please, the main ruleset) added to a project that has none yet, or asks for plinth by name.
 ---
 
 # plinth
 
-plinth writes a new project in one stack, installs its pinned tools, and creates its GitHub repo
-with squash-only merges, the label set and a `main` ruleset. It never prompts; every choice is a
-flag. Your job is to collect the choices, show the plan, get a yes, and run it.
+plinth adds the tooling around a project: mise and just with a `just check` gate, CI,
+release-please, Dependabot, PR and issue templates, a pre-commit guard and CLAUDE.md. Then it
+creates the GitHub repo with squash-only merges, the label set and a `main` ruleset. It never
+touches the project's code and never prompts; every choice is a flag. The project comes first,
+from its own tool. Your job is to collect the choices, create the project, show plinth's plan, get
+a yes, and run it.
 
 ## 1. Check plinth is there
 
@@ -16,40 +19,48 @@ Run `plinth --version`. If it isn't found, stop and tell the user it installs wi
 
 ## 2. Collect the choices
 
-Run `plinth stacks` for the stacks this version has. Then settle, asking only for what the user
-hasn't already said:
+plinth sets up Rust projects so far: it finds the language from `Cargo.toml`. If the user wants
+another language, say plinth can't set it up yet and stop. Don't substitute Rust.
+
+Settle, asking only for what the user hasn't already said:
 
 - **Name**: lowercase letters, digits and dashes, starting with a letter. It becomes the
-  directory, the package name and the repo name. Suggest one if they described the project but
-  didn't name it.
-- **Stack**: one from `plinth stacks`. If what they want isn't listed, say so and stop. Don't
-  substitute a stack they didn't ask for.
+  directory and the repo name. Suggest one if they described the project but didn't name it.
+- **Kind**: a binary (`cargo new`) or a library (`cargo new --lib`).
 - **Description**: one line on what it does. Draft it from what they said and let them change it.
-- **Where**: `~/Projects/<name>` unless they say otherwise. It must not exist or must be empty.
+- **Where**: `~/Projects/<name>` unless they say otherwise.
 - **GitHub**: private unless they ask for public. `--no-github` if they don't want a repo.
 
-## 3. Show the plan
+For a project that already exists, skip the kind and use its directory.
 
-Run it with `--dry-run` first, for example:
+## 3. Create the project
+
+Run `cargo new <dir>` (with `--lib` for a library) through `mise exec --` if cargo isn't on the
+path. It must not already exist; if it does, ask whether to set up that project instead. Never
+delete a directory to make room.
+
+## 4. Show the plan
+
+Run plinth with `--dry-run` first, for example:
 
 ```sh
-plinth new demo --stack rust --dir ~/Projects/demo --description "What it does" --dry-run
+plinth init --dir ~/Projects/demo --description "What it does" --dry-run
 ```
 
-Show the user the output: the files, the setup commands, and the `gh` calls. Creating a GitHub
-repo is visible outside this machine, so get an explicit yes to this exact plan, including
-private or public, before going on.
+Show the user the output: the files it adds, the files it leaves alone, the setup commands, and
+the `gh` calls. Creating a GitHub repo is visible outside this machine, so get an explicit yes to
+this exact plan, including private or public, before going on.
 
-## 4. Run it
+## 5. Run it
 
-Run the same command without `--dry-run`. It takes a minute or so: it installs the stack's tools
+Run the same command without `--dry-run`. It takes a minute or so: it installs the pinned tools
 through mise before creating the repo.
 
-If it fails, report the error as plinth printed it. A taken repo name or a non-empty directory is
-caught before anything is written, so ask for another name or place. Never delete a directory to
-make room.
+If it fails, report the error as plinth printed it. A taken repo name, an existing git remote, or
+uncommitted changes in a project with commits are caught before anything is written; ask the user
+how to go on. Don't commit or stash their changes yourself.
 
-## 5. Report
+## 6. Report
 
 Say where the project is and link the repo. Then the two things to know:
 

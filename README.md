@@ -1,8 +1,10 @@
 # plinth
 
-Scaffolds a new project in one stack, then creates and configures its GitHub repo the same way
-every time: squash-only PRs behind a `main` ruleset, a Conventional Commit title check,
-release-please and monthly Dependabot. A Claude Code plugin in this repo drives the same CLI.
+Sets up the tooling around a project, then creates and configures its GitHub repo the same way
+every time: mise and just with a `just check` gate, CI, squash-only PRs behind a `main` ruleset, a
+Conventional Commit title check, release-please and monthly Dependabot. It never touches the
+project's code: create the project with its own tool first, then run `plinth init` in it. A Claude
+Code plugin in this repo drives the same CLI.
 
 ## Install
 
@@ -18,22 +20,27 @@ Each release carries builds for Linux x86_64 and macOS on Apple silicon.
 /plugin install plinth --marketplace muradmadi/plinth
 ```
 
-The `plinth` skill turns "start a new Rust CLI called wordcount" into a `plinth new` call: it shows
-the `--dry-run` first and waits for a yes before creating the GitHub repo. It needs the CLI
-installed as above.
+The `plinth` skill turns "start a new Rust CLI called wordcount" into `cargo new wordcount` and a
+`plinth init` call: it shows the `--dry-run` first and waits for a yes before creating the GitHub
+repo. It needs the CLI installed as above.
 
 ## Use
 
 ```sh
-plinth stacks                                    # what `new` can build on
-plinth new demo --stack rust --description "…"   # writes ./demo, sets it up, creates muradmadi/demo
-plinth new demo --stack rust --dry-run           # lists the files and commands, touches nothing
+cargo new demo && cd demo
+plinth init --dry-run                  # lists the files and commands, touches nothing
+plinth init --description "…"          # adds the tooling, sets it up, creates muradmadi/demo
 ```
 
-The repo is private unless `--public` is given, and goes under the account gh is logged in as unless
-`--owner` names another. It gets squash-only merges, the label set, and a `main` ruleset that
-requires a PR with a passing `check`. `--no-github` stops before GitHub; `--no-setup --no-github`
-writes the files only.
+plinth works out the language from the project's manifest; Rust (`Cargo.toml`) is the only one so
+far. It adds the files the project lacks, appends missing lines to `.gitignore`, and lists the
+files it left alone because the project has its own. Running it again adds nothing.
+
+The repo is named after the directory unless `--name` gives another, is private unless `--public`
+is given, and goes under the account gh is logged in as unless `--owner` names another. It gets
+squash-only merges, the label set, and a `main` ruleset that requires a PR with a passing `check`.
+plinth refuses a project that already has a git remote, or that has commits and uncommitted
+changes. `--no-github` stops before GitHub; `--no-setup --no-github` writes the files only.
 
 ## Development
 

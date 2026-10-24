@@ -1,14 +1,14 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "plinth",
-  "description": "The plinth plugin: scaffold a new project and its GitHub repo from Claude Code",
+  "description": "The plinth plugin: set up a new project's tooling and GitHub repo from Claude Code",
   "owner": {
     "name": "Murad Madi"
   },
   "plugins": [
     {
       "name": "plinth",
-      "description": "Scaffold a new project in one stack with the plinth CLI, and set up its GitHub repo",
+      "description": "Set up the tooling around a new project and its GitHub repo with the plinth CLI",
       "source": "./plugin",
       "category": "development",
       "homepage": "https://github.com/muradmadi/plinth"
