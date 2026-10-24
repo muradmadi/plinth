@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.12.0](https://github.com/muradmadi/sadr/compare/v0.11.0...v0.12.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename plinth to sadr ([#40](https://github.com/muradmadi/sadr/issues/40))
+
+### Features
+
+* rename plinth to sadr ([#40](https://github.com/muradmadi/sadr/issues/40)) ([42ce34a](https://github.com/muradmadi/sadr/commit/42ce34ae08fac95e1d43531345602c903f964a22))
+
 ## [0.11.0](https://github.com/muradmadi/plinth/compare/v0.10.0...v0.11.0) (2026-10-24)
 
 
