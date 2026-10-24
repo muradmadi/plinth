@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.0](https://github.com/muradmadi/plinth/compare/v0.9.0...v0.10.0) (2026-10-24)
+
+
+### Features
+
+* keep the gate in step as a project grows ([#37](https://github.com/muradmadi/plinth/issues/37)) ([fa18d78](https://github.com/muradmadi/plinth/commit/fa18d7885acf1e023532ba7cffd9d3de1ec3057e))
+* set up monorepos, assembling the root from its members ([#35](https://github.com/muradmadi/plinth/issues/35)) ([73ace60](https://github.com/muradmadi/plinth/commit/73ace603f83e7bdb1b2c03b6309117bfa31e8ddb))
+
 ## [0.9.0](https://github.com/muradmadi/plinth/compare/v0.8.0...v0.9.0) (2026-10-24)
 
 
