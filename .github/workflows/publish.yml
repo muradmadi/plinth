@@ -1,5 +1,6 @@
-# Builds plinth for each platform and attaches the archives to the release, where
-# `mise use -g github:muradmadi/plinth` finds them. release.yml starts this on the tag
+# Builds plinth for each platform, attests each archive's provenance, and attaches the archives to
+# the release, where `mise use -g github:muradmadi/plinth` finds them. Anyone can check a download
+# with `gh attestation verify <archive> --repo muradmadi/plinth`. release.yml starts this on the tag
 # release-please just made; to redo a release by hand: gh workflow run publish.yml --ref v1.2.3
 name: publish
 
@@ -12,6 +13,9 @@ jobs:
   binaries:
     permissions:
       contents: write # gh release upload
+      id-token: write # sign the attestations
+      attestations: write # store them on the repo
+      artifact-metadata: write # the storage record actions/attest makes alongside
     strategy:
       matrix:
         include:
@@ -32,9 +36,8 @@ jobs:
       - run: cargo build --release --locked --target "$TARGET"
         env:
           TARGET: ${{ matrix.target }}
-      - name: Attach to the release
+      - name: Pack
         env:
-          GH_TOKEN: ${{ github.token }}
           TARGET: ${{ matrix.target }}
         run: |
           if [[ "$GITHUB_REF_TYPE" != tag ]]; then
@@ -42,4 +45,11 @@ jobs:
             exit 1
           fi
           tar -czf "plinth-$TARGET.tar.gz" -C "target/$TARGET/release" plinth
-          gh release upload "$GITHUB_REF_NAME" "plinth-$TARGET.tar.gz" --clobber
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: plinth-${{ matrix.target }}.tar.gz
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ matrix.target }}
+        run: gh release upload "$GITHUB_REF_NAME" "plinth-$TARGET.tar.gz" --clobber

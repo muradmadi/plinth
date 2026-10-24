@@ -14,7 +14,9 @@ this repo drives the same CLI.
 mise use -g github:muradmadi/plinth
 ```
 
-Each release carries builds for Linux x86_64 and macOS on Apple silicon.
+Each release carries builds for Linux x86_64 and macOS on Apple silicon, each with a build
+attestation: `gh attestation verify plinth-<target>.tar.gz --repo muradmadi/plinth` checks that a
+download was built by this repo's `publish.yml`.
 
 ### Claude Code
 
