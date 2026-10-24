@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.0](https://github.com/muradmadi/plinth/compare/v0.6.0...v0.7.0) (2026-10-24)
+
+
+### Features
+
+* check workflows and commits for security problems in the gate ([#22](https://github.com/muradmadi/plinth/issues/22)) ([2ec28d5](https://github.com/muradmadi/plinth/commit/2ec28d54a4fc5ad8e5983b0ff77ae5def2d4aac1))
+* give coding agents the house rules in AGENTS.md ([#26](https://github.com/muradmadi/plinth/issues/26)) ([a37ff3f](https://github.com/muradmadi/plinth/commit/a37ff3f878fe14b19b4ebbda0d8a78fc33513f34))
+* run the gate on release PRs without approving workflows ([#27](https://github.com/muradmadi/plinth/issues/27)) ([ff75cf2](https://github.com/muradmadi/plinth/commit/ff75cf288094a9b201a1913db8650e957e856a4b))
+* set editor basics, line endings and a spell check in every project ([#25](https://github.com/muradmadi/plinth/issues/25)) ([a0eccf8](https://github.com/muradmadi/plinth/commit/a0eccf895f4cb4f3738d60dbb9bec4c2ce9e093e))
+
+
+### Bug Fixes
+
+* open one lock file update a month, titled build(deps): ([#24](https://github.com/muradmadi/plinth/issues/24)) ([be3beb5](https://github.com/muradmadi/plinth/commit/be3beb58c59edb7d081a95bb610b1100b32a83f4))
+
 ## [0.6.0](https://github.com/muradmadi/plinth/compare/v0.5.0...v0.6.0) (2026-10-24)
 
 
