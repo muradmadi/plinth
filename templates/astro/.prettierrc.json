@@ -1,0 +1,5 @@
+{
+  "plugins": ["prettier-plugin-astro"],
+  "singleQuote": true,
+  "overrides": [{ "files": "*.json5", "options": { "singleQuote": false } }]
+}

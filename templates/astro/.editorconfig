@@ -1,0 +1,19 @@
+# Editors and Prettier both read this: UTF-8, LF, a final newline, no trailing spaces, and tabs
+# like Astro's own files.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = tab
+
+# Two spaces where the tools that write these files use them, npm's package.json included.
+[*.{json,json5,md,toml,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Two trailing spaces are a line break in Markdown.
+[*.md]
+trim_trailing_whitespace = false

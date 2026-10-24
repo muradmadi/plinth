@@ -9,7 +9,7 @@ use include_dir::{Dir, File, include_dir};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::{Environment, UndefinedBehavior, context};
 
-use crate::lang::Lang;
+use crate::lang::{Lang, Pm, Project};
 use crate::step::Step;
 
 /// Every template, compiled into the binary so a release needs nothing beside it.
@@ -22,11 +22,14 @@ pub struct Vars {
     /// The package name from the project's manifest, which can differ from `name`.
     pub package: String,
     pub version: String,
+    /// The package manager, for a JavaScript project; its commands go in the justfile.
+    pub pm: Option<Pm>,
 }
 
 /// Every file plinth adds to a project, keyed by its path inside the project. The base layer goes
-/// in first, then the language's, so a language file replaces a base file at the same path. A file
-/// ending in `.j2` is rendered and loses the suffix; anything else is copied as it is.
+/// in first, then the language's, so a language file replaces a base file at the same path. Last
+/// comes the package manager's layer for that language, such as `astro-pnpm`, where there is one.
+/// A file ending in `.j2` is rendered and loses the suffix; anything else is copied as it is.
 pub fn render(lang: Lang, vars: &Vars) -> Result<BTreeMap<PathBuf, String>> {
     let mut env = Environment::new();
     // A typo in a template variable fails loudly instead of rendering as an empty string.
@@ -41,10 +44,24 @@ pub fn render(lang: Lang, vars: &Vars) -> Result<BTreeMap<PathBuf, String>> {
         description => vars.description.as_str(),
         package => vars.package.as_str(),
         version => vars.version.as_str(),
+        pm => vars.pm.map(Pm::name),
+        exec => vars.pm.map(Pm::exec),
+        install_frozen => vars.pm.map(Pm::install_frozen),
     };
 
+    // Plain files rather than `.j2`, so Renovate can read and bump each package manager's mise.toml.
+    let pm_layer = vars
+        .pm
+        .map(|pm| format!("{}-{}", lang.name(), pm.name()))
+        .filter(|layer| TEMPLATES.get_dir(layer).is_some());
+    let layers = ["base", lang.name()]
+        .map(String::from)
+        .into_iter()
+        .chain(pm_layer);
+
     let mut files = BTreeMap::new();
-    for layer in ["base", lang.name()] {
+    for layer in layers {
+        let layer = layer.as_str();
         let dir = TEMPLATES
             .get_dir(layer)
             .with_context(|| format!("no templates for the {layer} layer"))?;
@@ -83,8 +100,8 @@ fn files_in(dir: &'static Dir<'static>, out: &mut Vec<&'static File<'static>>) {
 pub struct Plan {
     /// Files the project doesn't have yet.
     pub add: BTreeMap<PathBuf, String>,
-    /// Text to append to an existing line-based file: the `.gitignore` or `.gitattributes` lines
-    /// it lacks.
+    /// Text to append to an existing file: the `.gitignore` or `.gitattributes` lines it lacks, or
+    /// the house rules an AGENTS.md of the project's own lacks.
     pub append: BTreeMap<PathBuf, String>,
     /// Files the project already has in its own form, left as they are.
     pub keep: Vec<PathBuf>,
@@ -92,6 +109,9 @@ pub struct Plan {
 
 /// Files of one rule per line, which plinth adds its missing lines to instead of leaving alone.
 const APPENDED: [&str; 2] = [".gitignore", ".gitattributes"];
+
+/// The heading an AGENTS.md has once it carries plinth's house rules.
+const HOUSE_RULES: &str = "## Git and GitHub";
 
 /// Sorts the rendered files against what is already under `root`.
 pub fn plan(root: &Path, files: BTreeMap<PathBuf, String>) -> Result<Plan> {
@@ -111,6 +131,8 @@ pub fn plan(root: &Path, files: BTreeMap<PathBuf, String>) -> Result<Plan> {
             if let Some(extra) = missing_lines(&existing, &text) {
                 plan.append.insert(path, extra);
             }
+        } else if path == Path::new("AGENTS.md") && !has_house_rules(&existing) {
+            plan.append.insert(path, house_rules(&existing, &text));
         } else {
             plan.keep.push(path);
         }
@@ -142,6 +164,23 @@ fn missing_lines(existing: &str, ours: &str) -> Option<String> {
     Some(extra)
 }
 
+fn has_house_rules(agents_md: &str) -> bool {
+    agents_md.lines().any(|l| l.trim_end() == HOUSE_RULES)
+}
+
+/// plinth's AGENTS.md from its first section on, to follow the project's own text. The title and
+/// description stay out, as the project's file has its own.
+fn house_rules(existing: &str, ours: &str) -> String {
+    let sections = ours.find("\n## ").map_or(ours, |i| &ours[i + 1..]);
+    let mut extra = String::new();
+    if !existing.is_empty() && !existing.ends_with('\n') {
+        extra.push('\n');
+    }
+    extra.push('\n');
+    extra.push_str(sections);
+    extra
+}
+
 /// Writes the plan under `root`, creating directories as needed. Git hooks are made executable,
 /// or git would skip them.
 pub fn write(root: &Path, plan: &Plan) -> Result<()> {
@@ -169,7 +208,7 @@ pub fn write(root: &Path, plan: &Plan) -> Result<()> {
 /// The commands that turn the project and the written files into a working setup, in the order
 /// they run. Steps the project has already done, such as `git init` after `cargo new`, are left
 /// out.
-pub fn setup_steps(root: &Path, lang: Lang) -> Vec<Step> {
+pub fn setup_steps(root: &Path, project: &Project) -> Vec<Step> {
     let mut steps = Vec::new();
     if !root.join(".git").exists() {
         steps.push(Step::new([
@@ -181,12 +220,13 @@ pub fn setup_steps(root: &Path, lang: Lang) -> Vec<Step> {
     }
     steps.push(Step::new(["mise", "trust"]));
     steps.push(Step::new(["mise", "install"]));
-    for (done_when, command) in lang.setup() {
-        if !root.join(done_when).exists() {
-            steps.push(Step::new(
-                ["mise", "exec", "--"].iter().chain(command.iter()).copied(),
-            ));
-        }
+    for command in project.setup(root) {
+        steps.push(Step::new(
+            ["mise", "exec", "--"]
+                .map(String::from)
+                .into_iter()
+                .chain(command),
+        ));
     }
     steps.push(Step::new(["mise", "exec", "--", "just", "setup"]));
     steps
@@ -203,6 +243,7 @@ mod tests {
             description: description.into(),
             package: "demo-cli".into(),
             version: "0.1.0".into(),
+            pm: None,
         }
     }
 
@@ -275,10 +316,69 @@ mod tests {
     }
 
     #[test]
+    fn appends_the_house_rules_to_the_projects_own_agents_md_once() {
+        let tmp = TempDir::new().unwrap();
+        let agents_md = tmp.path().join("AGENTS.md");
+        fs::write(&agents_md, "## Development\n\nRun `astro dev`.").unwrap();
+
+        let plan = plan(tmp.path(), rendered()).unwrap();
+        let extra = &plan.append[Path::new("AGENTS.md")];
+        assert!(extra.starts_with("\n\n## Working here\n"));
+        assert!(extra.contains(HOUSE_RULES));
+        assert!(!extra.contains("# demo"));
+
+        write(tmp.path(), &plan).unwrap();
+        let again = super::plan(tmp.path(), rendered()).unwrap();
+        assert!(!again.append.contains_key(Path::new("AGENTS.md")));
+        assert!(again.keep.contains(&PathBuf::from("AGENTS.md")));
+    }
+
+    #[test]
+    fn the_astro_layer_runs_the_tools_through_the_package_manager() {
+        for (pm, exec, install) in [
+            (Pm::Npm, "npx --no -- prettier --check", "npm ci"),
+            (
+                Pm::Pnpm,
+                "pnpm exec prettier",
+                "pnpm install --frozen-lockfile",
+            ),
+            (
+                Pm::Bun,
+                "bun x --no-install prettier",
+                "bun install --frozen-lockfile",
+            ),
+        ] {
+            let files = render(
+                Lang::Astro,
+                &Vars {
+                    pm: Some(pm),
+                    ..vars("")
+                },
+            )
+            .unwrap();
+            let justfile = &files[Path::new("justfile")];
+            assert!(justfile.contains(exec) && justfile.contains(install));
+            assert_eq!(
+                files[Path::new("mise.toml")].contains("pnpm ="),
+                pm == Pm::Pnpm
+            );
+            assert_eq!(
+                files[Path::new("mise.toml")].contains("bun ="),
+                pm == Pm::Bun
+            );
+        }
+    }
+
+    #[test]
     fn setup_skips_what_the_project_already_did() {
         let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("Cargo.toml"),
+            "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
         let lines = |root: &Path| -> Vec<String> {
-            setup_steps(root, Lang::Rust)
+            setup_steps(root, &crate::lang::detect(root).unwrap())
                 .iter()
                 .map(ToString::to_string)
                 .collect()

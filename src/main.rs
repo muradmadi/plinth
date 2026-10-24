@@ -102,15 +102,16 @@ fn init(args: InitArgs) -> Result<()> {
         &Vars {
             name: name.clone(),
             description: args.description,
-            package: project.package,
-            version: project.version,
+            package: project.package.clone(),
+            version: project.version.clone(),
+            pm: project.pm,
         },
     )?;
     let plan = scaffold::plan(&root, files)?;
     let setup = if args.no_setup {
         Vec::new()
     } else {
-        scaffold::setup_steps(&root, project.lang)
+        scaffold::setup_steps(&root, &project)
     };
     let github_steps = repo.as_ref().map(github::steps).unwrap_or_default();
     let claude_note = claude_md_note(&root);
@@ -142,9 +143,9 @@ fn init(args: InitArgs) -> Result<()> {
     step::run_all(&root, &github_steps)?;
 
     println!(
-        "Set up {name} as a {} project in {}",
-        project.lang.name(),
-        root.display()
+        "Set up {name} in {} ({})",
+        root.display(),
+        project.lang.name()
     );
     if !plan.keep.is_empty() {
         println!("Left alone, as the project has its own:");
