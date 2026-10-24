@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/muradmadi/plinth/compare/v0.7.0...v0.8.0) (2026-10-24)
+
+
+### Features
+
+* let anyone verify where plinth's binaries were built ([#30](https://github.com/muradmadi/plinth/issues/30)) ([e179576](https://github.com/muradmadi/plinth/commit/e179576785ea19bf37e9447d00b28ddf219a6285))
+
+
+### Reverts
+
+* run the gate on release PRs without approving workflows ([#28](https://github.com/muradmadi/plinth/issues/28)) ([6c0a5af](https://github.com/muradmadi/plinth/commit/6c0a5af459861663290ffc8363ddab9c38604405))
+
 ## [0.7.0](https://github.com/muradmadi/plinth/compare/v0.6.0...v0.7.0) (2026-10-24)
 
 
