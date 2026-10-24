@@ -57,13 +57,15 @@ the project's own versions after.
 - **Hono server:** `mise exec node@24 bun -- bun create hono@latest <dir> --template bun --install
   --pm bun`.
 - **Plain package:** `mise exec bun -- bun init -y` in a new `<dir>`. It asks for TypeScript 7,
-  which plinth refuses until its lint supports 7: change `"typescript": "^7"` in package.json to
-  `"~6.0"` and run `bun install` before plinth.
+  so plinth lints it with oxlint instead of ESLint.
 
 - **Monorepo:** make the directory, then each package in it with the command above, using
   `apps/<name>` or `packages/<name>` as `<dir>` and running from the monorepo's directory. With
-  pnpm, `pnpm create hono@latest <dir> --template nodejs --install --pm pnpm` makes the server; it
-  asks for TypeScript 7 too, so change it as for `bun init`. plinth then assembles the root and
+  pnpm, `pnpm create hono@latest <dir> --template nodejs --install --pm pnpm` makes the server.
+  A workspace runs one TypeScript: `bun init` and create-hono's Node starter ask for 7,
+  create-vite for 6 and Astro needs 6. If the packages disagree, plinth refuses and names them;
+  with no Astro site, change create-vite's `"~6.0.3"` to `"^7.0.2"`, otherwise change the others'
+  to `"~6.0"`. plinth then assembles the root and
   installs once there. create-hono's Node starter isn't Prettier-formatted, so run `just format`
   once after plinth if `just check` says so.
 

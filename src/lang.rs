@@ -47,6 +47,18 @@ pub enum Tsconfig {
     Solution,
 }
 
+/// The TypeScript a project's gate runs on, which decides its linter: typescript-eslint's
+/// type-aware rules need TypeScript's JavaScript API, which 7 doesn't have, and oxlint's run on 7's
+/// own compiler and need it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TsMajor {
+    /// TypeScript 6, linted with ESLint. Also what a project that asks for no version gets.
+    #[default]
+    Six,
+    /// TypeScript 7, linted with type-aware oxlint.
+    Seven,
+}
+
 /// One package of a TypeScript project, at `path` from the root: `.` for a single package.
 #[derive(Clone, Debug)]
 pub struct Member {
@@ -67,6 +79,8 @@ pub struct Project {
     pub pm: Option<Pm>,
     /// The packages of a TypeScript project.
     pub members: Vec<Member>,
+    /// The TypeScript its gate runs on.
+    pub typescript: TsMajor,
     /// Whether the root is a workspace of several packages rather than a package itself.
     pub workspace: bool,
     /// What plinth does to turn packages without a root into a workspace.
@@ -94,10 +108,10 @@ type DevDep = (&'static str, &'static str, &'static str);
 
 const PRETTIER: &str = ".prettierrc.json";
 const ESLINT: &str = "plinth.eslint.mjs";
+const OXLINT: &str = "plinth.oxlintrc.json";
 const JUSTFILE: &str = "plinth.just";
 
-/// The dev dependencies every TypeScript gate runs. TypeScript is held at 6: typescript-eslint and
-/// `@astrojs/check` don't support 7 yet.
+/// The dev dependencies every TypeScript 6 gate runs.
 const TS_DEV_DEPS: [DevDep; 6] = [
     ("prettier", "prettier", PRETTIER),
     ("eslint", "eslint", ESLINT),
@@ -107,7 +121,15 @@ const TS_DEV_DEPS: [DevDep; 6] = [
     ("typescript", "typescript@~6.0", JUSTFILE),
 ];
 
-/// What a React app adds to them.
+/// The dev dependencies every TypeScript 7 gate runs. oxlint's React rules are built in.
+const TS7_DEV_DEPS: [DevDep; 4] = [
+    ("prettier", "prettier", PRETTIER),
+    ("oxlint", "oxlint", OXLINT),
+    ("oxlint-tsgolint", "oxlint-tsgolint", OXLINT),
+    ("typescript", "typescript@^7", JUSTFILE),
+];
+
+/// What a React app adds to TypeScript 6's.
 const WEB_DEV_DEPS: [DevDep; 2] = [
     (
         "eslint-plugin-react-hooks",
@@ -117,7 +139,7 @@ const WEB_DEV_DEPS: [DevDep; 2] = [
     ("globals", "globals", ESLINT),
 ];
 
-/// What an Astro site adds to them.
+/// What an Astro site adds to TypeScript 6's.
 const ASTRO_DEV_DEPS: [DevDep; 3] = [
     ("prettier-plugin-astro", "prettier-plugin-astro", PRETTIER),
     ("eslint-plugin-astro", "eslint-plugin-astro", ESLINT),
@@ -266,19 +288,18 @@ impl Project {
         }
     }
 
-    /// The dev dependencies the gate needs for this project's kinds of package.
+    /// The dev dependencies the gate needs for this project's TypeScript and kinds of package.
     fn dev_deps(&self) -> impl Iterator<Item = &'static DevDep> {
-        let web: &[_] = if self.has(Kind::Web) {
-            &WEB_DEV_DEPS
-        } else {
-            &[]
+        let only = |kind, deps: &'static [DevDep]| if self.has(kind) { deps } else { &[] };
+        let lists: [&[DevDep]; 3] = match self.typescript {
+            TsMajor::Six => [
+                &TS_DEV_DEPS,
+                only(Kind::Web, &WEB_DEV_DEPS),
+                only(Kind::Astro, &ASTRO_DEV_DEPS),
+            ],
+            TsMajor::Seven => [&TS7_DEV_DEPS, &[], &[]],
         };
-        let astro: &[_] = if self.has(Kind::Astro) {
-            &ASTRO_DEV_DEPS
-        } else {
-            &[]
-        };
-        TS_DEV_DEPS.iter().chain(web).chain(astro)
+        lists.into_iter().flatten()
     }
 }
 
@@ -327,6 +348,7 @@ fn rust(manifest: &Path) -> Result<Project> {
         version: field("version")?,
         pm: None,
         members: Vec::new(),
+        typescript: TsMajor::Six,
         workspace: false,
         assembly: None,
         deps: BTreeSet::new(),
@@ -341,14 +363,16 @@ fn read_manifest(manifest: &Path) -> Result<Value> {
 /// A single package, or a workspace root that lists its packages.
 fn typescript(root: &Path, manifest: &Path) -> Result<Project> {
     let json = read_manifest(manifest)?;
-    refuse_typescript_7(&json, manifest)?;
     let deps = dependencies(&json, &["dependencies", "devDependencies"]);
+    let mut asks = vec![(".".to_owned(), requested_typescript(&json))];
     let (members, workspace) = match workspace::globs(root, &json) {
         Some(globs) => {
-            let members = workspace::expand(root, &globs)?
-                .into_iter()
-                .map(|path| member(root, path))
-                .collect::<Result<_>>()?;
+            let mut members = Vec::new();
+            for path in workspace::expand(root, &globs)? {
+                let (member, asked) = member(root, path)?;
+                asks.push((member.path.clone(), asked));
+                members.push(member);
+            }
             (members, true)
         }
         None => {
@@ -360,6 +384,7 @@ fn typescript(root: &Path, manifest: &Path) -> Result<Project> {
             (vec![single], false)
         }
     };
+    let typescript = gate_typescript(&asks, &members)?;
     let field = |key: &str| json.get(key).and_then(Value::as_str).map(str::to_owned);
     Ok(Project {
         lang: Lang::TypeScript,
@@ -370,24 +395,25 @@ fn typescript(root: &Path, manifest: &Path) -> Result<Project> {
         version: field("version").unwrap_or_else(|| "0.0.0".into()),
         pm: Some(package_manager(root, &json)?),
         members,
+        typescript,
         workspace,
         assembly: None,
         deps,
     })
 }
 
-/// One package of a workspace, at `path` from the root.
-fn member(root: &Path, path: String) -> Result<Member> {
+/// One package of a workspace, at `path` from the root, and the TypeScript it asks for.
+fn member(root: &Path, path: String) -> Result<(Member, Option<TsMajor>)> {
     let dir = root.join(&path);
     let manifest = dir.join("package.json");
     let json = read_manifest(&manifest)?;
-    refuse_typescript_7(&json, &manifest)?;
     let deps = dependencies(&json, &["dependencies", "devDependencies"]);
-    Ok(Member {
+    let member = Member {
         kind: classify(&deps, &manifest)?,
         tsconfig: tsconfig(&dir),
         path,
-    })
+    };
+    Ok((member, requested_typescript(&json)))
 }
 
 /// A monorepo whose packages each came from their own tool, with no root package.json yet: the
@@ -397,6 +423,7 @@ fn assemble(root: &Path, name: &str) -> Result<Project> {
     let mut pms = BTreeSet::new();
     let mut assembly = Assembly::default();
     let mut members = Vec::new();
+    let mut asks = Vec::new();
     let mut pnpm_files = Vec::new();
     for path in paths {
         let dir = root.join(&path);
@@ -422,8 +449,11 @@ fn assemble(root: &Path, name: &str) -> Result<Project> {
                 .rename
                 .push((PathBuf::from(&path).join("package.json"), text));
         }
-        members.push(member(root, path)?);
+        let (member, asked) = member(root, path)?;
+        asks.push((member.path.clone(), asked));
+        members.push(member);
     }
+    let typescript = gate_typescript(&asks, &members)?;
     let pm = match pms.into_iter().collect::<Vec<_>>()[..] {
         [pm] => pm,
         [] => bail!(
@@ -470,6 +500,7 @@ fn assemble(root: &Path, name: &str) -> Result<Project> {
         version: "0.0.0".into(),
         pm: Some(pm),
         members,
+        typescript,
         workspace: true,
         assembly: Some(assembly),
         deps: BTreeSet::new(),
@@ -509,29 +540,63 @@ fn classify(deps: &BTreeSet<String>, manifest: &Path) -> Result<Kind> {
     }
 }
 
-/// The gate's type-aware lint and `astro check` run on TypeScript 6; with a project asking for 7,
-/// the package manager installs both and typescript-eslint breaks.
-fn refuse_typescript_7(json: &Value, manifest: &Path) -> Result<()> {
-    for key in ["dependencies", "devDependencies", "peerDependencies"] {
-        let Some(range) = json.get(key).and_then(|d| d.get("typescript")?.as_str()) else {
-            continue;
-        };
-        let bare = range.trim_start_matches(['^', '~', '>', '=', ' ']);
-        if bare.starts_with('7') || range == "latest" {
-            bail!(
-                "{}'s {key} ask for TypeScript {range}{}; the gate's lint and type checks need \
-                 TypeScript 6 until typescript-eslint supports 7. Change it to \"~6.0\", then run \
-                 plinth again",
-                manifest.display(),
-                if key == "peerDependencies" {
-                    ", as `bun init` writes it"
+/// The TypeScript a package.json asks for, in any of its dependency lists: 7 for a range that starts
+/// at 7, or `latest`, which is 7 now; 6 for anything else; None if it names none.
+fn requested_typescript(json: &Value) -> Option<TsMajor> {
+    ["dependencies", "devDependencies", "peerDependencies"]
+        .iter()
+        .find_map(|key| {
+            let range = json.get(key)?.get("typescript")?.as_str()?;
+            let bare = range.trim_start_matches(['^', '~', '>', '=', ' ']);
+            Some(if bare.starts_with('7') || range == "latest" {
+                TsMajor::Seven
+            } else {
+                TsMajor::Six
+            })
+        })
+}
+
+/// The TypeScript a project's gate runs on, from what its root and packages ask for, as
+/// (path, request). One TypeScript runs the whole gate, so a workspace whose packages ask for
+/// different ones is refused, as is an Astro site on 7, which `astro check` can't check.
+fn gate_typescript(asks: &[(String, Option<TsMajor>)], members: &[Member]) -> Result<TsMajor> {
+    let asking = |major| -> Vec<&str> {
+        asks.iter()
+            .filter(|(_, asked)| *asked == Some(major))
+            .map(|(path, _)| {
+                if path == "." {
+                    "the root"
                 } else {
-                    ""
+                    path.as_str()
                 }
-            );
-        }
+            })
+            .collect()
+    };
+    let (six, seven) = (asking(TsMajor::Six), asking(TsMajor::Seven));
+    if seven.is_empty() {
+        return Ok(TsMajor::Six);
     }
-    Ok(())
+    if !six.is_empty() {
+        bail!(
+            "packages ask for TypeScript 6 ({}) and 7 ({}); a workspace's gate runs one \
+             TypeScript, so change one of them, then run plinth again",
+            six.join(", "),
+            seven.join(", ")
+        );
+    }
+    if let Some(site) = members.iter().find(|m| m.kind == Kind::Astro) {
+        bail!(
+            "{} asks for TypeScript 7, but {} is an Astro site and `astro check` needs TypeScript 6 \
+             until @astrojs/check supports 7. Change it to \"~6.0\", then run plinth again",
+            seven.join(", "),
+            if site.path == "." {
+                "the project"
+            } else {
+                site.path.as_str()
+            },
+        );
+    }
+    Ok(TsMajor::Seven)
 }
 
 fn tsconfig(dir: &Path) -> Tsconfig {
@@ -872,9 +937,6 @@ mod tests {
         assert!(with(r#""next": "^16", "react": "^19""#).contains("uses Next.js"));
         assert!(with(r#""vue": "^3", "vite": "^8""#).contains("uses Vue"));
         assert!(with(r#""react": "^19""#).contains("without Vite"));
-        let ts7 = r#"{"name": "lib", "peerDependencies": {"typescript": "^7"}}"#;
-        let err = refusal(&[("package.json", ts7), ("bun.lock", "")]);
-        assert!(err.contains("TypeScript ^7") && err.contains("bun init"));
         assert!(refusal(&[("package.json", ASTRO), ("yarn.lock", "")]).contains("yarn"));
         assert!(refusal(&[("package.json", ASTRO)]).contains("no lockfile"));
         let two = [
@@ -885,6 +947,88 @@ mod tests {
         assert!(refusal(&two).contains("more than one"));
         let both = [("package.json", ASTRO), ("Cargo.toml", "")];
         assert!(refusal(&both).contains("both"));
+    }
+
+    #[test]
+    fn the_typescript_a_project_asks_for_picks_its_gate() {
+        let lib = |key: &str, range: &str| {
+            format!(r#"{{"name": "lib", "{key}": {{"typescript": "{range}"}}}}"#)
+        };
+        let pick = |manifest: &str| {
+            detect(
+                dir(&[("package.json", manifest), ("bun.lock", "")]).path(),
+                "demo",
+            )
+            .map(|p| p.typescript)
+        };
+        // `bun init` asks in peerDependencies.
+        assert_eq!(
+            pick(&lib("peerDependencies", "^7")).unwrap(),
+            TsMajor::Seven
+        );
+        assert_eq!(
+            pick(&lib("devDependencies", "latest")).unwrap(),
+            TsMajor::Seven
+        );
+        assert_eq!(
+            pick(&lib("devDependencies", "~6.0.3")).unwrap(),
+            TsMajor::Six
+        );
+        assert_eq!(pick(r#"{"name": "lib"}"#).unwrap(), TsMajor::Six);
+
+        let astro = r#"{"name": "site", "dependencies": {"astro": "^7"},
+            "devDependencies": {"typescript": "^7"}}"#;
+        assert!(
+            pick(astro)
+                .unwrap_err()
+                .to_string()
+                .contains("`astro check` needs TypeScript 6")
+        );
+    }
+
+    #[test]
+    fn a_workspace_runs_one_typescript() {
+        let web = r#"{"name": "web", "dependencies": {"react": "^19", "vite": "^8"},
+            "devDependencies": {"typescript": "~6.0.3"}}"#;
+        let api = r#"{"dependencies": {"hono": "^4"}, "devDependencies": {"typescript": "^7"}}"#;
+        let mixed = dir(&[
+            ("apps/web/package.json", web),
+            ("apps/web/bun.lock", ""),
+            ("apps/api/package.json", api),
+            ("apps/api/bun.lock", ""),
+        ]);
+        let err = detect(mixed.path(), "shop").unwrap_err().to_string();
+        assert!(
+            err.contains("TypeScript 6 (apps/web) and 7 (apps/api)"),
+            "{err}"
+        );
+
+        // A package that asks for none goes with the others.
+        let agreed = dir(&[
+            ("apps/web/package.json", WEB),
+            ("apps/web/bun.lock", ""),
+            ("apps/api/package.json", api),
+            ("apps/api/bun.lock", ""),
+        ]);
+        assert_eq!(
+            detect(agreed.path(), "shop").unwrap().typescript,
+            TsMajor::Seven
+        );
+    }
+
+    #[test]
+    fn typescript_7_lints_with_oxlint_instead_of_eslint() {
+        // As `bun init` asks: a peer dependency, so the gate installs TypeScript itself.
+        let manifest = r#"{"name": "web", "dependencies": {"react": "^19", "vite": "^8"},
+            "peerDependencies": {"typescript": "^7"}}"#;
+        let tmp = dir(&[("package.json", manifest), ("bun.lock", "")]);
+        let setup = detect(tmp.path(), "demo")
+            .unwrap()
+            .setup(tmp.path(), |_| true);
+        assert_eq!(
+            setup[0][3..],
+            ["prettier", "oxlint", "oxlint-tsgolint", "typescript@^7"]
+        );
     }
 
     #[test]

@@ -82,8 +82,8 @@ name for each package that lacks one, and one install at the root in place of ea
 lockfile and `node_modules`. The dry run lists each change first.
 
 It refuses what it can't set up yet and says why: Cargo workspaces, Next.js, Vue, Svelte,
-Expo and other frameworks, React without Vite, yarn, and a project that asks for TypeScript 7
-(`bun init` does; change it to `~6.0`).
+Expo and other frameworks, React without Vite, yarn, an Astro site on TypeScript 7, which
+`astro check` can't check yet, and a monorepo whose packages ask for different TypeScripts.
 
 It adds the files the project lacks, appends missing lines to `.gitignore` and `.gitattributes`,
 adds its house rules to an AGENTS.md the project already has, and lists the files it left alone
@@ -101,7 +101,9 @@ What `just check` runs:
 - **Rust:** rustfmt, clippy with warnings as errors, and the tests.
 - **TypeScript:**
   - Prettier, in the style the project's tool wrote its files in;
-  - ESLint with typescript-eslint's strict, type-aware rules, plus the React hooks rules or Astro's;
+  - typescript-eslint's strict, type-aware rules, plus the React hooks rules or Astro's: through
+    ESLint, or on TypeScript 7, which ESLint can't run on yet, through oxlint, which has every one
+    of those rules but `no-unsafe-enum-assignment`;
   - `tsc`, or `astro check` for an Astro site;
   - with bun, `bun test`.
 
@@ -109,9 +111,9 @@ What `just check` runs:
 
 Both also run the audit: typos, actionlint, zizmor, shellcheck and gitleaks.
 
-For TypeScript, plinth installs Prettier, ESLint, TypeScript 6 and what the kind of project needs
-as dev dependencies, with the project's own package manager. It also pins that package manager and
-Node in `mise.toml`.
+For TypeScript, plinth installs Prettier, ESLint or oxlint, TypeScript and what the kind of project
+needs as dev dependencies, with the project's own package manager. It also pins that package
+manager and Node in `mise.toml`.
 
 The repo is named after the directory unless `--name` gives another, is private unless `--public`
 is given, and goes under the account gh is logged in as unless `--owner` names another. It gets

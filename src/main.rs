@@ -105,6 +105,7 @@ fn init(args: InitArgs) -> Result<()> {
         version: project.version.clone(),
         pm: project.pm,
         members: project.members.clone(),
+        typescript: project.typescript,
     };
     let files = scaffold::render(project.lang, &vars)?;
     let mut plan = scaffold::plan(&root, files)?;
@@ -119,7 +120,7 @@ fn init(args: InitArgs) -> Result<()> {
     let github_steps = repo.as_ref().map(github::steps).unwrap_or_default();
     let notes: Vec<String> = claude_md_note(&root)
         .into_iter()
-        .chain(scaffold::prettier_notes(&root, &vars))
+        .chain(scaffold::config_notes(&root, &vars))
         .collect();
 
     if args.dry_run {
