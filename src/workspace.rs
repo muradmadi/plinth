@@ -88,7 +88,7 @@ pub fn pnpm_settings(files: &[String]) -> String {
 }
 
 /// The package directories `globs` match under `root`, relative to it and sorted. A glob is either
-/// a directory or `dir/*`, which every workspace plinth has met uses; anything else is refused.
+/// a directory or `dir/*`, which every workspace sadr has met uses; anything else is refused.
 pub fn expand(root: &Path, globs: &[String]) -> Result<Vec<String>> {
     let mut members = Vec::new();
     for glob in globs {
@@ -123,7 +123,7 @@ pub fn expand(root: &Path, globs: &[String]) -> Result<Vec<String>> {
 fn refuse_wildcards(path: &str, glob: &str) -> Result<()> {
     if path.contains(['*', '?', '[', '{', '!']) {
         bail!(
-            "the workspace glob {glob} is more than a directory or `dir/*`, which is all plinth \
+            "the workspace glob {glob} is more than a directory or `dir/*`, which is all sadr \
              reads so far"
         );
     }
@@ -132,7 +132,7 @@ fn refuse_wildcards(path: &str, glob: &str) -> Result<()> {
 
 /// The packages of a monorepo whose root has no package.json yet: each directory one or two levels
 /// down with a package.json, as `bun create vite apps/web` leaves them. A directory with a
-/// package.json is a package, so plinth doesn't look inside it.
+/// package.json is a package, so sadr doesn't look inside it.
 pub fn find_members(root: &Path) -> Vec<String> {
     let mut members = Vec::new();
     for dir in subdirs(root) {

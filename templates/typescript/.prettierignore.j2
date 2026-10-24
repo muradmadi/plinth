@@ -5,9 +5,9 @@ package.json
 package-lock.json
 pnpm-lock.yaml
 bun.lock
-# plinth writes these in one style for every project and rewrites them on each run.
-plinth.eslint.mjs
-plinth.oxlintrc.json
+# sadr writes these in one style for every project and rewrites them on each run.
+sadr.eslint.mjs
+sadr.oxlintrc.json
 {%- for m in members if m.kind == "api" %}
 # create-hono writes it without a final newline.
 {{ m.prefix }}tsconfig.json

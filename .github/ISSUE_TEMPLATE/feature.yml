@@ -1,12 +1,12 @@
 name: Feature
-description: Something new plinth could do
+description: Something new sadr could do
 labels: [feature]
 body:
   - type: textarea
     id: what
     attributes:
-      label: What someone using plinth can do
-      description: The change as a person using plinth would notice it, in a sentence or two.
+      label: What someone using sadr can do
+      description: The change as a person using sadr would notice it, in a sentence or two.
     validations:
       required: true
   - type: textarea

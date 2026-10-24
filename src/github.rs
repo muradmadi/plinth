@@ -5,7 +5,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::step::Step;
 
-/// The repo plinth creates for a new project.
+/// The repo sadr creates for a new project.
 pub struct Repo {
     pub owner: String,
     pub name: String,
@@ -83,7 +83,7 @@ pub fn ensure_absent(repo: &Repo) -> Result<()> {
     Ok(())
 }
 
-/// Fails if the project's git repo can't take plinth's commit and push: it already has a remote,
+/// Fails if the project's git repo can't take sadr's commit and push: it already has a remote,
 /// or it has commits and uncommitted changes that the commit would sweep in. A repo without
 /// commits yet, as `cargo new` leaves it, is fine; its first commit is the whole project.
 pub fn ensure_ready(root: &Path) -> Result<()> {
@@ -99,7 +99,7 @@ pub fn ensure_ready(root: &Path) -> Result<()> {
     };
     if git(&["remote", "get-url", "origin"])?.status.success() {
         bail!(
-            "{} already has a git remote; plinth only creates new GitHub repos so far, so run it \
+            "{} already has a git remote; sadr only creates new GitHub repos so far, so run it \
              with --no-github",
             root.display()
         );
@@ -109,7 +109,7 @@ pub fn ensure_ready(root: &Path) -> Result<()> {
         .success();
     if has_commits && !git(&["status", "--porcelain"])?.stdout.is_empty() {
         bail!(
-            "{} has uncommitted changes; commit or stash them first, so plinth's commit holds only \
+            "{} has uncommitted changes; commit or stash them first, so sadr's commit holds only \
              its own files",
             root.display()
         );
@@ -129,7 +129,7 @@ pub fn steps(repo: &Repo) -> Vec<Step> {
             "commit",
             "--quiet",
             "--message",
-            &format!("chore: set up {} with plinth", repo.name),
+            &format!("chore: set up {} with sadr", repo.name),
         ]),
     ];
 

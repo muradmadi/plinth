@@ -84,7 +84,7 @@ fn init(args: InitArgs) -> Result<()> {
     let repo = if args.no_github {
         None
     } else {
-        // Checked first: it needs no network and catches a repo plinth can't push.
+        // Checked first: it needs no network and catches a repo sadr can't push.
         github::ensure_ready(&root)?;
         let owner = match args.owner {
             Some(owner) => owner,
@@ -133,7 +133,7 @@ fn init(args: InitArgs) -> Result<()> {
         );
         print_paths("Would append to:", plan.append.keys());
         print_paths(
-            "Would update, as plinth wrote them and keeps them in step:",
+            "Would update, as sadr wrote them and keeps them in step:",
             plan.update.keys(),
         );
         print_paths("Would edit, to give the package a name:", plan.edit.keys());
@@ -180,7 +180,7 @@ fn init(args: InitArgs) -> Result<()> {
 }
 
 /// Claude Code reads AGENTS.md only when there's no CLAUDE.md, so a project that already has one
-/// needs it to import AGENTS.md. plinth doesn't edit the file; it says what to add.
+/// needs it to import AGENTS.md. sadr doesn't edit the file; it says what to add.
 fn claude_md_note(root: &Path) -> Option<String> {
     let text = fs::read_to_string(root.join("CLAUDE.md")).ok()?;
     if text.contains("@AGENTS.md") {
