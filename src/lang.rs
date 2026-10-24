@@ -93,8 +93,8 @@ pub struct Assembly {
 type DevDep = (&'static str, &'static str, &'static str);
 
 const PRETTIER: &str = ".prettierrc.json";
-const ESLINT: &str = "eslint.config.mjs";
-const JUSTFILE: &str = "justfile";
+const ESLINT: &str = "plinth.eslint.mjs";
+const JUSTFILE: &str = "plinth.just";
 
 /// The dev dependencies every TypeScript gate runs. TypeScript is held at 6: typescript-eslint and
 /// `@astrojs/check` don't support 7 yet.

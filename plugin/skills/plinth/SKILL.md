@@ -103,3 +103,10 @@ Say where the project is and link the repo. Then the two things to know:
 - Changes reach `main` only through a PR whose `check` passes.
 - After the first release-worthy merge, release-please opens a release PR. GitHub holds its
   workflows until someone clicks "Approve workflows to run" on it; after that it can merge.
+
+## Later: a new package
+
+When a package is added to a monorepo plinth set up, run `plinth init --no-github --dry-run` in its
+root, then without `--dry-run` on a yes. It rewrites `plinth.just` and `plinth.eslint.mjs` for the
+new package and installs any dev dependency it now needs. If it prints a note about
+`.prettierrc.json`, add what it says to that file, then run `just format` and `just check`.
