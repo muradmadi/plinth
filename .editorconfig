@@ -1,0 +1,17 @@
+# Editors read this before the formatters run: UTF-8, LF, a final newline, no trailing spaces.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,json5,md,toml,yml,yaml}]
+indent_size = 2
+
+# Two trailing spaces are a line break in Markdown.
+[*.md]
+trim_trailing_whitespace = false

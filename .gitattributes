@@ -1,0 +1,6 @@
+# LF in the repo whatever the platform's git settings, so diffs and the hook's checks agree.
+* text=auto eol=lf
+# Generated lockfiles: GitHub collapses their diffs and leaves them out of the language stats.
+Cargo.lock linguist-generated
+bun.lock linguist-generated
+uv.lock linguist-generated

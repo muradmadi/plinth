@@ -83,11 +83,15 @@ fn files_in(dir: &'static Dir<'static>, out: &mut Vec<&'static File<'static>>) {
 pub struct Plan {
     /// Files the project doesn't have yet.
     pub add: BTreeMap<PathBuf, String>,
-    /// Text to append to an existing file: the `.gitignore` lines it lacks.
+    /// Text to append to an existing line-based file: the `.gitignore` or `.gitattributes` lines
+    /// it lacks.
     pub append: BTreeMap<PathBuf, String>,
     /// Files the project already has in its own form, left as they are.
     pub keep: Vec<PathBuf>,
 }
+
+/// Files of one rule per line, which plinth adds its missing lines to instead of leaving alone.
+const APPENDED: [&str; 2] = [".gitignore", ".gitattributes"];
 
 /// Sorts the rendered files against what is already under `root`.
 pub fn plan(root: &Path, files: BTreeMap<PathBuf, String>) -> Result<Plan> {
@@ -103,7 +107,7 @@ pub fn plan(root: &Path, files: BTreeMap<PathBuf, String>) -> Result<Plan> {
         if existing == text {
             continue;
         }
-        if path == Path::new(".gitignore") {
+        if APPENDED.iter().any(|a| path == Path::new(a)) {
             if let Some(extra) = missing_lines(&existing, &text) {
                 plan.append.insert(path, extra);
             }
@@ -130,7 +134,7 @@ fn missing_lines(existing: &str, ours: &str) -> Option<String> {
     if !existing.is_empty() && !existing.ends_with('\n') {
         extra.push('\n');
     }
-    extra.push_str("\n# Added by plinth; .githooks/pre-commit refuses secrets and data too.\n");
+    extra.push_str("\n# Added by plinth\n");
     for line in missing {
         extra.push_str(line);
         extra.push('\n');
@@ -252,14 +256,22 @@ mod tests {
     #[test]
     fn appends_only_the_gitignore_lines_it_lacks() {
         let extra = missing_lines("/target\n.env", "/target\n\n# Secrets\n.env\n*.db\n").unwrap();
-        assert_eq!(
-            extra,
-            "\n\n# Added by plinth; .githooks/pre-commit refuses secrets and data too.\n*.db\n"
-        );
+        assert_eq!(extra, "\n\n# Added by plinth\n*.db\n");
         assert_eq!(
             missing_lines("/target\n*.db\n", "/target\n# x\n*.db\n"),
             None
         );
+    }
+
+    #[test]
+    fn appends_to_an_existing_gitattributes_too() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join(".gitattributes"), "* text=auto eol=lf\n").unwrap();
+        let plan = plan(tmp.path(), rendered()).unwrap();
+        let extra = &plan.append[Path::new(".gitattributes")];
+        assert!(extra.contains("Cargo.lock linguist-generated\n"));
+        assert!(!extra.contains("text=auto"));
+        assert!(!plan.keep.contains(&PathBuf::from(".gitattributes")));
     }
 
     #[test]

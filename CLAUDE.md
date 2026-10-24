@@ -16,7 +16,7 @@ The build plan is `~/.claude/plans/warm-baking-aho.md`. Rust is the only languag
 - **Never prompts.** Every choice is a flag, so Claude or any other harness can drive it. What can be
   read from the project, such as its language, is read rather than asked.
 - **Never touches the project's code.** plinth adds files the project lacks, appends missing lines
-  to `.gitignore`, and leaves every other existing file as it is. No framework or source templates.
+  to `.gitignore` and `.gitattributes`, and leaves every other existing file as it is. No framework or source templates.
 - **Practise what it preaches.** The shared files plinth generates match this repo's own copies; a
   test enforces it. Change one, change both. Renovate scans `templates/` too, so its PRs bump an
   action or a mise tool in both copies at once.
@@ -58,7 +58,7 @@ The `publish.yml` hook in `release.yml` is shared with every generated project; 
 
 Rust, just and the audit tools are pinned in `mise.toml`; run `mise install`, then `just setup` once.
 `just check` is the gate: `cargo fmt --check`, clippy with warnings as errors, `cargo test`, then
-`just audit` (actionlint, zizmor, shellcheck on the hook, gitleaks over every commit). A zizmor
+`just audit` (typos, actionlint, zizmor, shellcheck on the hook, gitleaks over every commit). A zizmor
 finding is fixed, or ignored inline with `# zizmor: ignore[<audit>]` and the reason. Murad is new to
 Rust (background in C# and C++), so explain Rust-specific choices briefly in PRs where they aren't
 obvious.
