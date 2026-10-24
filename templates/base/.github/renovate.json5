@@ -7,15 +7,18 @@
   extends: ["config:recommended", "helpers:pinGitHubActionDigests", "schedule:monthly"],
   labels: ["dependencies"],
   semanticCommits: "enabled",
+  // config:recommended titles some updates fix(deps): or chore(deps):; fix would make a release.
+  semanticCommitType: "build",
   // A release must be this old before Renovate proposes it, so a broken or hijacked one is
   // usually pulled first.
   minimumReleaseAge: "3 days",
   lockFileMaintenance: { enabled: true, schedule: ["* 0-3 1 * *"] },
   packageRules: [
-    // config:recommended titles some updates fix(deps):, which would make a release.
     { matchPackageNames: ["*"], semanticCommitType: "build", groupName: "dependencies" },
     { matchManagers: ["github-actions"], semanticCommitType: "ci", groupName: "GitHub Actions" },
     { matchManagers: ["mise"], groupName: "mise tools" },
+    // mise.toml has no lock file, so its group would get an empty lock file maintenance PR.
+    { matchManagers: ["mise"], matchUpdateTypes: ["lockFileMaintenance"], enabled: false },
     // 0.x minor bumps can break, so only 1.0+ versions merge themselves.
     { matchUpdateTypes: ["minor", "patch"], matchCurrentVersion: "!/^v?0\\./", automerge: true },
     { matchUpdateTypes: ["lockFileMaintenance"], automerge: true },
